@@ -381,28 +381,33 @@ siteproof/
 1. ~~Scaffold Next.js + Tailwind + shadcn/ui + Clerk + Drizzle + Supabase~~ ✅
 2. ~~Database schema + migrations~~ ✅
 3. ~~Project CRUD (create, list, view)~~ ✅
-4. Manual task list (add, edit, reorder, delete)
-5. Evidence upload (presigned URL → R2, EXIF extraction, thumbnails)
-6. Evidence gallery (grid view, filters)
-7. Manual task linking (dropdown)
+4. ~~Manual task list (add, edit, reorder, delete)~~ ✅
+5. ~~Evidence upload (presigned URL → R2, EXIF extraction, thumbnails)~~ ✅
+6. ~~Evidence gallery (grid view, filters)~~ ✅
+7. ~~Manual task linking (dropdown)~~ ✅
 
 ### Phase 2 — Intelligence
-8. GPS zone map editor (Mapbox)
-9. AI task suggestion (GPS + time + recency)
-10. MS Project / P6 XML import
+8. ~~GPS zone map editor (Mapbox)~~ ✅
+9. ~~AI task suggestion (GPS + time + recency)~~ ✅
+10. ~~MS Project / P6 XML import~~ ✅
 
 ### Phase 3 — Reports
-11. Report HTML templates (7 pages)
-12. PDF generation (Puppeteer + password protection)
-13. Report management (generate, list, download)
-14. Before/after photo pairing
+11. ~~Report HTML templates (7 pages)~~ ✅
+12. ~~PDF generation (Puppeteer + password protection)~~ ✅
+13. ~~Report management (generate, list, download)~~ ✅
+14. ~~Before/after photo pairing~~ ✅
 
 ### Phase 4 — Polish & billing
-15. PWA setup (manifest, service worker)
-16. Mobile capture flow
+15. ~~PWA setup (manifest, service worker)~~ ✅
+16. ~~Mobile capture flow~~ ✅
 17. Stripe integration
-18. Audit log UI
+18. ~~Audit log UI~~ ✅
 19. Gantt chart with evidence markers
+
+### Phase 5 — Security & launch hardening ✅
+20. ~~Auth on all endpoints (protectedProcedure + org isolation)~~ ✅
+21. ~~Audit logging wired into all mutations~~ ✅
+22. ~~Dashboard stats page (project counts, activity feed)~~ ✅
 
 ---
 
