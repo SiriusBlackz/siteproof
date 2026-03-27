@@ -23,8 +23,20 @@ export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.userId) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!ctx.userId || !ctx.orgId) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: !ctx.clerkId
+        ? "Not signed in. Please sign in to continue."
+        : "Account setup incomplete. Please try again.",
+    });
   }
-  return next({ ctx: { ...ctx, userId: ctx.userId } });
+  return next({
+    ctx: {
+      ...ctx,
+      userId: ctx.userId,
+      orgId: ctx.orgId,
+      dbUser: ctx.dbUser!,
+    },
+  });
 });
