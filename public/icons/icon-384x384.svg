@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="384" viewBox="0 0 384 384">
+  <rect width="384" height="384" rx="69" fill="#0f172a"/>
+  <g transform="translate(46,46)">
+    <rect x="43.8" y="160.60000000000002" width="204.39999999999998" height="102.19999999999999" rx="11.68" fill="#3b82f6"/>
+    <path d="M146,35.04 L239.44,140.16 L52.559999999999995,140.16 Z" fill="#3b82f6"/>
+    <rect x="110.96000000000001" y="93.44" width="70.08" height="23.36" rx="5.84" fill="#0f172a"/>
+    <text x="146" y="227.76000000000002" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="46.72" fill="white">SP</text>
+  </g>
+</svg>
