@@ -17,6 +17,7 @@ import {
   Calendar,
   Building2,
   FileCheck,
+  ClipboardList,
 } from "lucide-react";
 
 export default function ProjectDetailPage() {
@@ -50,6 +51,7 @@ export default function ProjectDetailPage() {
     { href: `/projects/${project.id}/evidence`, label: "Evidence", icon: FileCheck },
     { href: `/projects/${project.id}/zones`, label: "GPS Zones", icon: Map },
     { href: `/projects/${project.id}/reports`, label: "Reports", icon: FileText },
+    { href: `/projects/${project.id}/audit`, label: "Audit Log", icon: ClipboardList },
     { href: `/projects/${project.id}/settings`, label: "Settings", icon: Settings },
   ];
 
