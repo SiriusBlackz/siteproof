@@ -6,12 +6,14 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { TaskList } from "@/components/tasks/task-list";
 import { TaskFormDialog, type TaskFormValues } from "@/components/tasks/task-form";
-import { Plus } from "lucide-react";
+import { ImportDialog } from "@/components/tasks/import-dialog";
+import { Plus, FileUp } from "lucide-react";
 import { toast } from "sonner";
 
 export default function TasksPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editTask, setEditTask] = useState<{
     id: string;
     values: Partial<TaskFormValues>;
@@ -122,10 +124,16 @@ export default function TasksPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Tasks</h2>
-        <Button onClick={() => setFormOpen(true)}>
-          <Plus className="mr-1 h-4 w-4" />
-          Add Task
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <FileUp className="mr-1 h-4 w-4" />
+            Import
+          </Button>
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add Task
+          </Button>
+        </div>
       </div>
 
       <TaskList
@@ -153,6 +161,13 @@ export default function TasksPage() {
         tasks={tasks}
         isSubmitting={updateMutation.isPending}
         editTaskId={editTask?.id}
+      />
+
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        projectId={projectId}
+        onImportComplete={() => utils.task.list.invalidate({ projectId })}
       />
     </div>
   );

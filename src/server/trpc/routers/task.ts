@@ -2,6 +2,7 @@ import { z } from "zod";
 import { eq, asc, and, sql } from "drizzle-orm";
 import { createTRPCRouter, publicProcedure } from "../index";
 import { tasks } from "@/server/db/schema";
+import { detectAndParse } from "@/server/services/programme-import";
 
 interface FlatTask {
   id: string;
@@ -180,6 +181,59 @@ export const taskRouter = createTRPCRouter({
             .where(eq(tasks.id, item.id));
         }
         return { success: true };
+      });
+    }),
+
+  previewImport: publicProcedure
+    .input(z.object({ xml: z.string().min(10) }))
+    .mutation(async ({ input }) => {
+      const result = detectAndParse(input.xml);
+      return result;
+    }),
+
+  import: publicProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        xml: z.string().min(10),
+        clearExisting: z.boolean().default(false),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { tasks: parsedTasks, format } = detectAndParse(input.xml);
+
+      return ctx.db.transaction(async (tx) => {
+        if (input.clearExisting) {
+          await tx.delete(tasks).where(eq(tasks.projectId, input.projectId));
+        }
+
+        // Map sourceRef -> new task ID for parent resolution
+        const refToId = new Map<string, string>();
+
+        for (const pt of parsedTasks) {
+          const parentTaskId = pt.parentSourceRef
+            ? refToId.get(pt.parentSourceRef) ?? null
+            : null;
+
+          const [inserted] = await tx
+            .insert(tasks)
+            .values({
+              projectId: input.projectId,
+              name: pt.name,
+              parentTaskId: parentTaskId,
+              plannedStart: pt.plannedStart,
+              plannedEnd: pt.plannedEnd,
+              progressPct: pt.progressPct,
+              sortOrder: pt.sortOrder,
+              sourceRef: pt.sourceRef,
+              status: pt.progressPct >= 100 ? "completed" : pt.progressPct > 0 ? "in_progress" : "not_started",
+            })
+            .returning();
+
+          refToId.set(pt.sourceRef, inserted.id);
+        }
+
+        return { imported: parsedTasks.length, format };
       });
     }),
 });
