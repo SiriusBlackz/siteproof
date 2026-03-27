@@ -31,9 +31,9 @@ SiteProof is a **Contractor Progress Evidence Tracker** — a web app where cons
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 14+ (App Router) |
+| Framework | Next.js 16 (App Router, Turbopack) |
 | Language | TypeScript (strict) |
-| Styling | Tailwind CSS + shadcn/ui |
+| Styling | Tailwind CSS v4 + shadcn/ui v4 (Base UI) |
 | API | tRPC |
 | ORM | Drizzle ORM |
 | Database | PostgreSQL (Supabase) |
@@ -378,9 +378,9 @@ siteproof/
 ## Implementation phases
 
 ### Phase 1 — Core loop (build first)
-1. Scaffold Next.js + Tailwind + shadcn/ui + Clerk + Drizzle + Supabase
-2. Database schema + migrations
-3. Project CRUD (create, list, view)
+1. ~~Scaffold Next.js + Tailwind + shadcn/ui + Clerk + Drizzle + Supabase~~ ✅
+2. ~~Database schema + migrations~~ ✅
+3. ~~Project CRUD (create, list, view)~~ ✅
 4. Manual task list (add, edit, reorder, delete)
 5. Evidence upload (presigned URL → R2, EXIF extraction, thumbnails)
 6. Evidence gallery (grid view, filters)
@@ -440,6 +440,8 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1...
 - **Heuristic AI linking (not LLM):** GPS zone + time + recency gets 80%+ accuracy, zero API cost
 - **Drizzle over Prisma:** Lighter, faster, better for geospatial queries
 - **evidence_links as join table:** One photo can link to multiple tasks; tracks link method (manual/AI/auto)
+- **shadcn v4 (Base UI):** No `asChild` prop on Button — use `buttonVariants()` with Link/anchor elements instead. Select uses Base UI primitives (value can be `string | null`).
+- **postgres.js driver:** Using `postgres` (postgres.js), not `pg` (node-postgres) — lighter, recommended pairing with Drizzle
 
 ---
 
