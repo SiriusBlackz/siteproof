@@ -128,3 +128,8 @@
     @apply font-sans;
   }
 }
+
+/* Safe area padding for iOS notch / home indicator */
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+}

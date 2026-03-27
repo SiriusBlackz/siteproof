@@ -45,8 +45,9 @@ export default function ProjectDetailPage() {
   };
 
   const subPages = [
+    { href: `/capture?projectId=${project.id}`, label: "Capture", icon: Camera },
     { href: `/projects/${project.id}/tasks`, label: "Tasks", icon: ListTodo },
-    { href: `/projects/${project.id}/evidence`, label: "Evidence", icon: Camera },
+    { href: `/projects/${project.id}/evidence`, label: "Evidence", icon: FileCheck },
     { href: `/projects/${project.id}/zones`, label: "GPS Zones", icon: Map },
     { href: `/projects/${project.id}/reports`, label: "Reports", icon: FileText },
     { href: `/projects/${project.id}/settings`, label: "Settings", icon: Settings },
