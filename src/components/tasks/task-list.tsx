@@ -1,0 +1,220 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  ChevronUp,
+  ChevronDown,
+  Pencil,
+  Trash2,
+  GripVertical,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface TaskItem {
+  id: string;
+  parentTaskId: string | null;
+  name: string;
+  description: string | null;
+  plannedStart: string | null;
+  plannedEnd: string | null;
+  progressPct: number | null;
+  sortOrder: number | null;
+  status: string | null;
+  depth: number;
+}
+
+interface TaskListProps {
+  tasks: TaskItem[];
+  onEdit: (task: TaskItem) => void;
+  onDelete: (taskId: string) => void;
+  onReorder: (
+    items: { id: string; sortOrder: number; parentTaskId: string | null }[]
+  ) => void;
+}
+
+const statusConfig: Record<string, { label: string; className: string }> = {
+  not_started: {
+    label: "Not Started",
+    className: "bg-muted text-muted-foreground",
+  },
+  in_progress: {
+    label: "In Progress",
+    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  },
+  completed: {
+    label: "Completed",
+    className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  },
+  delayed: {
+    label: "Delayed",
+    className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  },
+};
+
+export function TaskList({ tasks, onEdit, onDelete, onReorder }: TaskListProps) {
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  function getSiblings(task: TaskItem) {
+    return tasks.filter((t) => t.parentTaskId === task.parentTaskId);
+  }
+
+  function canMoveUp(task: TaskItem) {
+    const siblings = getSiblings(task);
+    const idx = siblings.findIndex((t) => t.id === task.id);
+    return idx > 0;
+  }
+
+  function canMoveDown(task: TaskItem) {
+    const siblings = getSiblings(task);
+    const idx = siblings.findIndex((t) => t.id === task.id);
+    return idx < siblings.length - 1;
+  }
+
+  function moveTask(task: TaskItem, direction: "up" | "down") {
+    const siblings = getSiblings(task);
+    const idx = siblings.findIndex((t) => t.id === task.id);
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= siblings.length) return;
+
+    const other = siblings[swapIdx];
+    onReorder([
+      {
+        id: task.id,
+        sortOrder: other.sortOrder ?? 0,
+        parentTaskId: task.parentTaskId,
+      },
+      {
+        id: other.id,
+        sortOrder: task.sortOrder ?? 0,
+        parentTaskId: other.parentTaskId,
+      },
+    ]);
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className="py-12 text-center text-muted-foreground">
+        No tasks yet. Add your first task to get started.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-1">
+        {tasks.map((task) => {
+          const status = statusConfig[task.status ?? "not_started"];
+          const progress = task.progressPct ?? 0;
+
+          return (
+            <div
+              key={task.id}
+              className="group flex items-center gap-2 rounded-lg border bg-card px-3 py-2 hover:bg-muted/50"
+              style={{ marginLeft: `${task.depth * 24}px` }}
+            >
+              <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium truncate">{task.name}</span>
+                  <Badge
+                    variant="secondary"
+                    className={cn("text-xs shrink-0", status.className)}
+                  >
+                    {status.label}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                  {(task.plannedStart || task.plannedEnd) && (
+                    <span>
+                      {task.plannedStart ?? "?"} → {task.plannedEnd ?? "?"}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <span>{progress}%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => moveTask(task, "up")}
+                  disabled={!canMoveUp(task)}
+                >
+                  <ChevronUp className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => moveTask(task, "down")}
+                  disabled={!canMoveDown(task)}
+                >
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => onEdit(task)}
+                >
+                  <Pencil className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => setDeleteConfirm(task.id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <Dialog
+        open={deleteConfirm !== null}
+        onOpenChange={() => setDeleteConfirm(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Task</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure? Child tasks will be moved up to the parent level.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deleteConfirm) onDelete(deleteConfirm);
+                setDeleteConfirm(null);
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
