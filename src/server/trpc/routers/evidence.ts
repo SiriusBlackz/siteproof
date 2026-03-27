@@ -3,6 +3,7 @@ import { eq, and, desc, lte, gte, sql } from "drizzle-orm";
 import { createTRPCRouter, publicProcedure } from "../index";
 import { evidence, evidenceLinks, tasks } from "@/server/db/schema";
 import { getUploadUrl, getPublicUrl } from "@/server/services/storage";
+import { suggestTasks } from "@/server/services/ai-linker";
 import crypto from "crypto";
 
 export const evidenceRouter = createTRPCRouter({
@@ -190,5 +191,21 @@ export const evidenceRouter = createTRPCRouter({
           )
         );
       return { success: true };
+    }),
+
+  suggest: publicProcedure
+    .input(z.object({ evidenceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const item = await ctx.db.query.evidence.findFirst({
+        where: eq(evidence.id, input.evidenceId),
+      });
+      if (!item) throw new Error("Evidence not found");
+
+      return suggestTasks(ctx.db, {
+        latitude: item.latitude,
+        longitude: item.longitude,
+        capturedAt: item.capturedAt,
+        projectId: item.projectId,
+      });
     }),
 });

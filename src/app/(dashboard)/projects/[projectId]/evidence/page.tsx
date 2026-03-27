@@ -25,6 +25,26 @@ import { TaskLinker } from "@/components/evidence/task-linker";
 import type { EvidenceItem } from "@/components/evidence/evidence-card";
 import { Upload, Filter } from "lucide-react";
 
+function TaskLinkerWithSuggestions({
+  evidenceId,
+  projectId,
+  linkedTaskIds,
+}: {
+  evidenceId: string;
+  projectId: string;
+  linkedTaskIds: string[];
+}) {
+  const { data: suggestions } = trpc.evidence.suggest.useQuery({ evidenceId });
+  return (
+    <TaskLinker
+      evidenceId={evidenceId}
+      projectId={projectId}
+      linkedTaskIds={linkedTaskIds}
+      suggestions={suggestions}
+    />
+  );
+}
+
 export default function EvidencePage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -197,7 +217,7 @@ export default function EvidencePage() {
                   className="w-full rounded-lg"
                 />
               )}
-              <TaskLinker
+              <TaskLinkerWithSuggestions
                 evidenceId={selectedItem.id}
                 projectId={projectId}
                 linkedTaskIds={selectedItem.linkedTasks.map((t) => t.taskId)}
