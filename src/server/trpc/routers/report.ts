@@ -5,6 +5,7 @@ import { reports } from "@/server/db/schema";
 import { inngest } from "@/server/inngest/client";
 import { getPublicUrl } from "@/server/services/storage";
 import { assertProjectAccess } from "../helpers";
+import { writeAuditLog } from "@/server/services/audit";
 import crypto from "crypto";
 
 export const reportRouter = createTRPCRouter({
@@ -123,6 +124,7 @@ export const reportRouter = createTRPCRouter({
         }
       }
 
+      writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "generate", entityType: "report", entityId: report.id, metadata: { reportNumber, periodStart: input.periodStart, periodEnd: input.periodEnd } });
       return report;
     }),
 

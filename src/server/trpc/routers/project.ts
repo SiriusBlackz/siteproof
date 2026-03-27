@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { createTRPCRouter, protectedProcedure } from "../index";
 import { projects } from "@/server/db/schema";
 import { assertProjectAccess } from "../helpers";
+import { writeAuditLog } from "@/server/services/audit";
 
 export const projectRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -49,6 +50,7 @@ export const projectRouter = createTRPCRouter({
           reportingFrequency: input.reportingFrequency || null,
         })
         .returning();
+      writeAuditLog(ctx.db, { projectId: project.id, userId: ctx.userId, action: "create", entityType: "project", entityId: project.id, metadata: { name: project.name } });
       return project;
     }),
 
@@ -78,6 +80,7 @@ export const projectRouter = createTRPCRouter({
         .set({ ...cleaned, updatedAt: new Date() })
         .where(eq(projects.id, id))
         .returning();
+      writeAuditLog(ctx.db, { projectId: id, userId: ctx.userId, action: "update", entityType: "project", entityId: id });
       return project;
     }),
 
@@ -90,6 +93,7 @@ export const projectRouter = createTRPCRouter({
         .set({ status: "archived", updatedAt: new Date() })
         .where(eq(projects.id, input.id))
         .returning();
+      writeAuditLog(ctx.db, { projectId: input.id, userId: ctx.userId, action: "archive", entityType: "project", entityId: input.id });
       return project;
     }),
 });

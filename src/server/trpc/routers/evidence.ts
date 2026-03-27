@@ -5,6 +5,7 @@ import { evidence, evidenceLinks, tasks } from "@/server/db/schema";
 import { getUploadUrl, getPublicUrl } from "@/server/services/storage";
 import { suggestTasks } from "@/server/services/ai-linker";
 import { assertProjectAccess } from "../helpers";
+import { writeAuditLog } from "@/server/services/audit";
 import crypto from "crypto";
 
 export const evidenceRouter = createTRPCRouter({
@@ -63,6 +64,7 @@ export const evidenceRouter = createTRPCRouter({
           note: input.note,
         })
         .returning();
+      writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "upload", entityType: "evidence", entityId: record.id, metadata: { filename: input.originalFilename } });
       return record;
     }),
 
@@ -174,6 +176,7 @@ export const evidenceRouter = createTRPCRouter({
         })
         .onConflictDoNothing()
         .returning();
+      if (link && ev) writeAuditLog(ctx.db, { projectId: ev.projectId, userId: ctx.userId, action: "link", entityType: "evidence_link", entityId: link.id, metadata: { evidenceId: input.evidenceId, taskId: input.taskId } });
       return link ?? { alreadyLinked: true };
     }),
 
@@ -199,6 +202,7 @@ export const evidenceRouter = createTRPCRouter({
             eq(evidenceLinks.taskId, input.taskId)
           )
         );
+      if (ev) writeAuditLog(ctx.db, { projectId: ev.projectId, userId: ctx.userId, action: "unlink", entityType: "evidence_link", entityId: input.evidenceId, metadata: { taskId: input.taskId } });
       return { success: true };
     }),
 
