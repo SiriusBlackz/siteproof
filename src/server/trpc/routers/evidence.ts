@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { eq, and, desc, lte, gte, sql } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure } from "../index";
+import { createTRPCRouter, protectedProcedure } from "../index";
 import { evidence, evidenceLinks, tasks } from "@/server/db/schema";
 import { getUploadUrl, getPublicUrl } from "@/server/services/storage";
 import { suggestTasks } from "@/server/services/ai-linker";
+import { assertProjectAccess } from "../helpers";
 import crypto from "crypto";
 
 export const evidenceRouter = createTRPCRouter({
-  getUploadUrl: publicProcedure
+  getUploadUrl: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
@@ -16,18 +17,15 @@ export const evidenceRouter = createTRPCRouter({
         fileSizeBytes: z.number().positive(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       const evidenceId = crypto.randomUUID();
-      const ext = input.filename.split(".").pop() ?? "";
       const storageKey = `projects/${input.projectId}/evidence/${evidenceId}/${input.filename}`;
       const result = await getUploadUrl(storageKey, input.contentType);
-      return {
-        ...result,
-        evidenceId,
-      };
+      return { ...result, evidenceId };
     }),
 
-  confirm: publicProcedure
+  confirm: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
@@ -44,13 +42,14 @@ export const evidenceRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       const type = input.mimeType.startsWith("video/") ? "video" : "photo";
 
       const [record] = await ctx.db
         .insert(evidence)
         .values({
           projectId: input.projectId,
-          uploadedBy: "00000000-0000-0000-0000-000000000001", // TODO: Get from auth
+          uploadedBy: ctx.userId,
           type,
           storageKey: input.storageKey,
           originalFilename: input.originalFilename,
@@ -67,7 +66,7 @@ export const evidenceRouter = createTRPCRouter({
       return record;
     }),
 
-  list: publicProcedure
+  list: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
@@ -79,7 +78,7 @@ export const evidenceRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      // Build conditions
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       const conditions = [eq(evidence.projectId, input.projectId)];
 
       if (input.dateFrom) {
@@ -89,7 +88,6 @@ export const evidenceRouter = createTRPCRouter({
         conditions.push(lte(evidence.capturedAt, new Date(input.dateTo)));
       }
 
-      // If filtering by task, get evidence IDs linked to that task
       let evidenceIdsForTask: string[] | null = null;
       if (input.taskId) {
         const links = await ctx.db.query.evidenceLinks.findMany({
@@ -102,7 +100,6 @@ export const evidenceRouter = createTRPCRouter({
         }
       }
 
-      // Cursor condition
       if (input.cursor) {
         const cursorRecord = await ctx.db.query.evidence.findFirst({
           where: eq(evidence.id, input.cursor),
@@ -127,7 +124,6 @@ export const evidenceRouter = createTRPCRouter({
         },
       });
 
-      // Apply task filter in-memory if needed
       if (evidenceIdsForTask) {
         items = items.filter((e) => evidenceIdsForTask!.includes(e.id));
       }
@@ -148,7 +144,7 @@ export const evidenceRouter = createTRPCRouter({
       };
     }),
 
-  link: publicProcedure
+  link: protectedProcedure
     .input(
       z.object({
         evidenceId: z.string().uuid(),
@@ -161,6 +157,13 @@ export const evidenceRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify ownership via the evidence's project
+      const ev = await ctx.db.query.evidence.findFirst({
+        where: eq(evidence.id, input.evidenceId),
+        columns: { projectId: true },
+      });
+      if (ev) await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId);
+
       const [link] = await ctx.db
         .insert(evidenceLinks)
         .values({
@@ -174,7 +177,7 @@ export const evidenceRouter = createTRPCRouter({
       return link ?? { alreadyLinked: true };
     }),
 
-  unlink: publicProcedure
+  unlink: protectedProcedure
     .input(
       z.object({
         evidenceId: z.string().uuid(),
@@ -182,6 +185,12 @@ export const evidenceRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const ev = await ctx.db.query.evidence.findFirst({
+        where: eq(evidence.id, input.evidenceId),
+        columns: { projectId: true },
+      });
+      if (ev) await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId);
+
       await ctx.db
         .delete(evidenceLinks)
         .where(
@@ -193,13 +202,14 @@ export const evidenceRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  suggest: publicProcedure
+  suggest: protectedProcedure
     .input(z.object({ evidenceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const item = await ctx.db.query.evidence.findFirst({
         where: eq(evidence.id, input.evidenceId),
       });
       if (!item) throw new Error("Evidence not found");
+      await assertProjectAccess(ctx.db, item.projectId, ctx.orgId);
 
       return suggestTasks(ctx.db, {
         latitude: item.latitude,

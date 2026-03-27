@@ -1,28 +1,29 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure } from "../index";
+import { createTRPCRouter, protectedProcedure } from "../index";
 import { projects } from "@/server/db/schema";
+import { assertProjectAccess } from "../helpers";
 
 export const projectRouter = createTRPCRouter({
-  list: publicProcedure.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.query.projects.findMany({
+      where: eq(projects.orgId, ctx.orgId),
       orderBy: (projects, { desc }) => [desc(projects.createdAt)],
     });
   }),
 
-  get: publicProcedure
+  get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const project = await ctx.db.query.projects.findFirst({
         where: eq(projects.id, input.id),
       });
-      if (!project) {
-        throw new Error("Project not found");
-      }
+      if (!project) throw new Error("Project not found");
+      if (project.orgId !== ctx.orgId) throw new Error("Access denied");
       return project;
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         name: z.string().min(1, "Project name is required"),
@@ -38,14 +39,20 @@ export const projectRouter = createTRPCRouter({
       const [project] = await ctx.db
         .insert(projects)
         .values({
-          ...input,
-          orgId: "00000000-0000-0000-0000-000000000000", // TODO: Get from auth context
+          name: input.name,
+          orgId: ctx.orgId,
+          reference: input.reference || null,
+          clientName: input.clientName || null,
+          contractType: input.contractType || null,
+          startDate: input.startDate || null,
+          endDate: input.endDate || null,
+          reportingFrequency: input.reportingFrequency || null,
         })
         .returning();
       return project;
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -60,18 +67,24 @@ export const projectRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.id, ctx.orgId);
       const { id, ...data } = input;
+      const cleaned: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(data)) {
+        cleaned[key] = val === "" ? null : val;
+      }
       const [project] = await ctx.db
         .update(projects)
-        .set({ ...data, updatedAt: new Date() })
+        .set({ ...cleaned, updatedAt: new Date() })
         .where(eq(projects.id, id))
         .returning();
       return project;
     }),
 
-  archive: publicProcedure
+  archive: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.id, ctx.orgId);
       const [project] = await ctx.db
         .update(projects)
         .set({ status: "archived", updatedAt: new Date() })

@@ -1,32 +1,35 @@
 import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure } from "../index";
+import { createTRPCRouter, protectedProcedure } from "../index";
 import { reports } from "@/server/db/schema";
 import { inngest } from "@/server/inngest/client";
 import { getPublicUrl } from "@/server/services/storage";
+import { assertProjectAccess } from "../helpers";
 import crypto from "crypto";
 
 export const reportRouter = createTRPCRouter({
-  list: publicProcedure
+  list: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       return ctx.db.query.reports.findMany({
         where: eq(reports.projectId, input.projectId),
         orderBy: [desc(reports.reportNumber)],
       });
     }),
 
-  get: publicProcedure
+  get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const report = await ctx.db.query.reports.findFirst({
         where: eq(reports.id, input.id),
       });
       if (!report) throw new Error("Report not found");
+      await assertProjectAccess(ctx.db, report.projectId, ctx.orgId);
       return report;
     }),
 
-  generate: publicProcedure
+  generate: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
@@ -36,7 +39,8 @@ export const reportRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Get next report number
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+
       const existing = await ctx.db.query.reports.findMany({
         where: eq(reports.projectId, input.projectId),
         columns: { reportNumber: true },
@@ -45,17 +49,15 @@ export const reportRouter = createTRPCRouter({
       });
       const reportNumber = (existing[0]?.reportNumber ?? 0) + 1;
 
-      // Hash password if provided
       const passwordHash = input.password
         ? crypto.createHash("sha256").update(input.password).digest("hex")
         : null;
 
-      // Create report record with "generating" status
       const [report] = await ctx.db
         .insert(reports)
         .values({
           projectId: input.projectId,
-          generatedBy: "00000000-0000-0000-0000-000000000001", // TODO: auth
+          generatedBy: ctx.userId,
           reportNumber,
           periodStart: input.periodStart,
           periodEnd: input.periodEnd,
@@ -64,7 +66,6 @@ export const reportRouter = createTRPCRouter({
         })
         .returning();
 
-      // Send Inngest event to trigger background generation
       try {
         await inngest.send({
           name: "report/generate",
@@ -74,11 +75,10 @@ export const reportRouter = createTRPCRouter({
             periodStart: input.periodStart,
             periodEnd: input.periodEnd,
             password: input.password,
-            generatedBy: "00000000-0000-0000-0000-000000000001",
+            generatedBy: ctx.userId,
           },
         });
       } catch {
-        // If Inngest isn't configured, generate synchronously (dev fallback)
         const {
           gatherReportData,
           renderReportHTML,
@@ -91,13 +91,12 @@ export const reportRouter = createTRPCRouter({
             periodStart: input.periodStart,
             periodEnd: input.periodEnd,
             password: input.password,
-            generatedBy: "00000000-0000-0000-0000-000000000001",
+            generatedBy: ctx.userId,
           });
 
           const html = await renderReportHTML(reportData);
           const pdfBuffer = await htmlToPdf(html, input.password);
 
-          // Write to local storage
           const { writeFile, mkdir } = await import("fs/promises");
           const { join, dirname } = await import("path");
           const storageKey = `projects/${input.projectId}/reports/report-${reportNumber}.pdf`;
@@ -116,7 +115,7 @@ export const reportRouter = createTRPCRouter({
               },
             })
             .where(eq(reports.id, report.id));
-        } catch (err) {
+        } catch {
           await ctx.db
             .update(reports)
             .set({ status: "failed" })
@@ -127,7 +126,7 @@ export const reportRouter = createTRPCRouter({
       return report;
     }),
 
-  download: publicProcedure
+  download: protectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -139,22 +138,19 @@ export const reportRouter = createTRPCRouter({
         where: eq(reports.id, input.id),
       });
       if (!report) throw new Error("Report not found");
+      await assertProjectAccess(ctx.db, report.projectId, ctx.orgId);
+
       if (report.status !== "completed" || !report.pdfStorageKey) {
         throw new Error("Report is not ready for download");
       }
 
-      // Verify password if the report is password-protected
       if (report.passwordHash) {
-        if (!input.password) {
-          throw new Error("Password required");
-        }
+        if (!input.password) throw new Error("Password required");
         const hash = crypto
           .createHash("sha256")
           .update(input.password)
           .digest("hex");
-        if (hash !== report.passwordHash) {
-          throw new Error("Incorrect password");
-        }
+        if (hash !== report.passwordHash) throw new Error("Incorrect password");
       }
 
       return {

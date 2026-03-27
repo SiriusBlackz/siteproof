@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure } from "../index";
+import { createTRPCRouter, protectedProcedure } from "../index";
 import { gpsZones } from "@/server/db/schema";
+import { assertProjectAccess } from "../helpers";
 
 const polygonSchema = z.object({
   type: z.literal("Polygon"),
@@ -9,9 +10,10 @@ const polygonSchema = z.object({
 });
 
 export const zoneRouter = createTRPCRouter({
-  list: publicProcedure
+  list: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       return ctx.db.query.gpsZones.findMany({
         where: eq(gpsZones.projectId, input.projectId),
         with: {
@@ -20,20 +22,18 @@ export const zoneRouter = createTRPCRouter({
       });
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
         name: z.string().min(1, "Zone name is required"),
         polygon: polygonSchema,
         defaultTaskId: z.string().uuid().nullable().optional(),
-        color: z
-          .string()
-          .regex(/^#[0-9a-fA-F]{6}$/)
-          .optional(),
+        color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       const [zone] = await ctx.db
         .insert(gpsZones)
         .values({
@@ -47,32 +47,41 @@ export const zoneRouter = createTRPCRouter({
       return zone;
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
         name: z.string().min(1).optional(),
         polygon: polygonSchema.optional(),
         defaultTaskId: z.string().uuid().nullable().optional(),
-        color: z
-          .string()
-          .regex(/^#[0-9a-fA-F]{6}$/)
-          .optional(),
+        color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const zone = await ctx.db.query.gpsZones.findFirst({
+        where: eq(gpsZones.id, input.id),
+        columns: { projectId: true },
+      });
+      if (zone) await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId);
+
       const { id, ...data } = input;
-      const [zone] = await ctx.db
+      const [updated] = await ctx.db
         .update(gpsZones)
         .set(data)
         .where(eq(gpsZones.id, id))
         .returning();
-      return zone;
+      return updated;
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const zone = await ctx.db.query.gpsZones.findFirst({
+        where: eq(gpsZones.id, input.id),
+        columns: { projectId: true },
+      });
+      if (zone) await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId);
+
       await ctx.db.delete(gpsZones).where(eq(gpsZones.id, input.id));
       return { success: true };
     }),

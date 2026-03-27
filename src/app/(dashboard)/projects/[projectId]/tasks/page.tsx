@@ -140,7 +140,7 @@ export default function TasksPage() {
         tasks={tasks}
         onEdit={handleEdit}
         onDelete={(id) => deleteMutation.mutate({ id })}
-        onReorder={(items) => reorderMutation.mutate({ items })}
+        onReorder={(items) => reorderMutation.mutate({ projectId, items })}
       />
 
       <TaskFormDialog

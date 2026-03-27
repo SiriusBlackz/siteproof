@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { eq, asc, and, sql } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure } from "../index";
+import { createTRPCRouter, protectedProcedure } from "../index";
 import { tasks } from "@/server/db/schema";
 import { detectAndParse } from "@/server/services/programme-import";
+import { assertProjectAccess } from "../helpers";
 
 interface FlatTask {
   id: string;
@@ -47,9 +48,10 @@ function buildTree(
 }
 
 export const taskRouter = createTRPCRouter({
-  list: publicProcedure
+  list: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       const allTasks = await ctx.db.query.tasks.findMany({
         where: eq(tasks.projectId, input.projectId),
         orderBy: [asc(tasks.sortOrder)],
@@ -57,7 +59,7 @@ export const taskRouter = createTRPCRouter({
       return buildTree(allTasks);
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
@@ -73,9 +75,9 @@ export const taskRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       const parentId = input.parentTaskId ?? null;
 
-      // Get next sortOrder for tasks with the same parent
       const [maxResult] = await ctx.db
         .select({ max: sql<number>`COALESCE(MAX(${tasks.sortOrder}), -1)` })
         .from(tasks)
@@ -96,8 +98,8 @@ export const taskRouter = createTRPCRouter({
           name: input.name,
           description: input.description,
           parentTaskId: parentId,
-          plannedStart: input.plannedStart,
-          plannedEnd: input.plannedEnd,
+          plannedStart: input.plannedStart || null,
+          plannedEnd: input.plannedEnd || null,
           status: input.status ?? "not_started",
           progressPct: input.progressPct ?? 0,
           sortOrder: nextSort,
@@ -106,7 +108,7 @@ export const taskRouter = createTRPCRouter({
       return task;
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -124,41 +126,50 @@ export const taskRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify ownership via the task's project
+      const existing = await ctx.db.query.tasks.findFirst({
+        where: eq(tasks.id, input.id),
+        columns: { projectId: true },
+      });
+      if (existing) await assertProjectAccess(ctx.db, existing.projectId, ctx.orgId);
+
       const { id, ...data } = input;
+      const cleaned: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(data)) {
+        cleaned[key] = val === "" ? null : val;
+      }
       const [task] = await ctx.db
         .update(tasks)
-        .set({ ...data, updatedAt: new Date() })
+        .set({ ...cleaned, updatedAt: new Date() })
         .where(eq(tasks.id, id))
         .returning();
       return task;
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.transaction(async (tx) => {
-        // Find the task to get its parentTaskId
         const task = await tx.query.tasks.findFirst({
           where: eq(tasks.id, input.id),
         });
         if (!task) throw new Error("Task not found");
+        await assertProjectAccess(ctx.db, task.projectId, ctx.orgId);
 
-        // Reassign children to the deleted task's parent
         await tx
           .update(tasks)
           .set({ parentTaskId: task.parentTaskId, updatedAt: new Date() })
           .where(eq(tasks.parentTaskId, input.id));
 
-        // Delete the task
         await tx.delete(tasks).where(eq(tasks.id, input.id));
-
         return { success: true };
       });
     }),
 
-  reorder: publicProcedure
+  reorder: protectedProcedure
     .input(
       z.object({
+        projectId: z.string().uuid(),
         items: z.array(
           z.object({
             id: z.string().uuid(),
@@ -169,6 +180,7 @@ export const taskRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       return ctx.db.transaction(async (tx) => {
         for (const item of input.items) {
           await tx
@@ -184,14 +196,13 @@ export const taskRouter = createTRPCRouter({
       });
     }),
 
-  previewImport: publicProcedure
+  previewImport: protectedProcedure
     .input(z.object({ xml: z.string().min(10) }))
     .mutation(async ({ input }) => {
-      const result = detectAndParse(input.xml);
-      return result;
+      return detectAndParse(input.xml);
     }),
 
-  import: publicProcedure
+  import: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
@@ -200,6 +211,7 @@ export const taskRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       const { tasks: parsedTasks, format } = detectAndParse(input.xml);
 
       return ctx.db.transaction(async (tx) => {
@@ -207,7 +219,6 @@ export const taskRouter = createTRPCRouter({
           await tx.delete(tasks).where(eq(tasks.projectId, input.projectId));
         }
 
-        // Map sourceRef -> new task ID for parent resolution
         const refToId = new Map<string, string>();
 
         for (const pt of parsedTasks) {
@@ -220,7 +231,7 @@ export const taskRouter = createTRPCRouter({
             .values({
               projectId: input.projectId,
               name: pt.name,
-              parentTaskId: parentTaskId,
+              parentTaskId,
               plannedStart: pt.plannedStart,
               plannedEnd: pt.plannedEnd,
               progressPct: pt.progressPct,

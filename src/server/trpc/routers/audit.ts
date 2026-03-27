@@ -1,10 +1,11 @@
 import { z } from "zod";
-import { eq, and, desc, gte, lte } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure } from "../index";
-import { auditLog, users } from "@/server/db/schema";
+import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
+import { createTRPCRouter, protectedProcedure } from "../index";
+import { auditLog } from "@/server/db/schema";
+import { assertProjectAccess } from "../helpers";
 
 export const auditRouter = createTRPCRouter({
-  list: publicProcedure
+  list: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
@@ -17,6 +18,7 @@ export const auditRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       const conditions = [eq(auditLog.projectId, input.projectId)];
 
       if (input.action) {
@@ -39,10 +41,7 @@ export const auditRouter = createTRPCRouter({
         });
         if (cursorRow?.createdAt) {
           conditions.push(lte(auditLog.createdAt, cursorRow.createdAt));
-          conditions.push(
-            // Exclude the cursor itself
-            eq(auditLog.id, input.cursor) as unknown as ReturnType<typeof eq> extends infer T ? never : never
-          );
+          conditions.push(sql`${auditLog.id} != ${input.cursor}`);
         }
       }
 
@@ -78,8 +77,7 @@ export const auditRouter = createTRPCRouter({
       };
     }),
 
-  // CSV export — returns all entries as a flat array of objects
-  export: publicProcedure
+  export: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
@@ -90,6 +88,7 @@ export const auditRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
       const conditions = [eq(auditLog.projectId, input.projectId)];
       if (input.action) conditions.push(eq(auditLog.action, input.action));
       if (input.userId) conditions.push(eq(auditLog.userId, input.userId));
