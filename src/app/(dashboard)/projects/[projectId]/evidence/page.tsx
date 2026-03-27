@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/dialog";
 import { EvidenceGrid } from "@/components/evidence/evidence-grid";
 import { UploadQueue } from "@/components/evidence/upload-queue";
+import { TaskLinker } from "@/components/evidence/task-linker";
+import type { EvidenceItem } from "@/components/evidence/evidence-card";
 import { Upload, Filter } from "lucide-react";
 
 export default function EvidencePage() {
@@ -30,6 +32,7 @@ export default function EvidencePage() {
   const [taskFilter, setTaskFilter] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [selectedItem, setSelectedItem] = useState<EvidenceItem | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -147,7 +150,7 @@ export default function EvidencePage() {
         </div>
       )}
 
-      <EvidenceGrid items={items} />
+      <EvidenceGrid items={items} onItemClick={setSelectedItem} />
 
       {hasNextPage && (
         <div className="flex justify-center pt-4">
@@ -170,6 +173,37 @@ export default function EvidencePage() {
             projectId={projectId}
             onUploadComplete={handleUploadComplete}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={selectedItem !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedItem(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedItem?.originalFilename ?? "Evidence Detail"}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="space-y-4">
+              {selectedItem.type !== "video" && (
+                <img
+                  src={selectedItem.publicUrl}
+                  alt={selectedItem.originalFilename ?? ""}
+                  className="w-full rounded-lg"
+                />
+              )}
+              <TaskLinker
+                evidenceId={selectedItem.id}
+                projectId={projectId}
+                linkedTaskIds={selectedItem.linkedTasks.map((t) => t.taskId)}
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
