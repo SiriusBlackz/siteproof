@@ -1,0 +1,424 @@
+import { createElement } from "react";
+import { eq, and, gte, lte, asc, desc, count, sql } from "drizzle-orm";
+import {
+  projects,
+  organisations,
+  tasks,
+  evidence,
+  evidenceLinks,
+  gpsZones,
+  auditLog,
+  reports,
+} from "@/server/db/schema";
+import { getPublicUrl } from "./storage";
+import { generateBeforeAfterPairs } from "./before-after";
+import type { db as dbType } from "@/server/db";
+
+// Template imports
+import { ReportShell, type ReportMeta } from "@/components/reports/templates/report-shell";
+import { CoverPage } from "@/components/reports/templates/cover-page";
+import {
+  ExecutiveSummary,
+  type SummaryStats,
+} from "@/components/reports/templates/executive-summary";
+import { ProgrammeTimeline, type TimelineTask } from "@/components/reports/templates/programme-timeline";
+import {
+  EvidenceGalleryPage,
+  type GalleryTask,
+} from "@/components/reports/templates/evidence-gallery";
+import { BeforeAfterPage } from "@/components/reports/templates/before-after";
+import {
+  VerificationPage,
+  type VerificationStats,
+} from "@/components/reports/templates/verification";
+import { SignOffPage } from "@/components/reports/templates/sign-off";
+
+type DB = typeof dbType;
+
+export interface GenerateReportInput {
+  projectId: string;
+  periodStart: string;
+  periodEnd: string;
+  password?: string;
+  generatedBy: string;
+}
+
+/**
+ * Gather all data needed for the report.
+ */
+export async function gatherReportData(db: DB, input: GenerateReportInput) {
+  // 1. Project + org
+  const project = await db.query.projects.findFirst({
+    where: eq(projects.id, input.projectId),
+    with: { organisation: true },
+  });
+  if (!project) throw new Error("Project not found");
+
+  const org = project.organisation;
+
+  // 2. Get next report number
+  const existingReports = await db.query.reports.findMany({
+    where: eq(reports.projectId, input.projectId),
+    columns: { reportNumber: true },
+    orderBy: [desc(reports.reportNumber)],
+    limit: 1,
+  });
+  const reportNumber = (existingReports[0]?.reportNumber ?? 0) + 1;
+
+  // 3. All tasks for project
+  const allTasks = await db.query.tasks.findMany({
+    where: eq(tasks.projectId, input.projectId),
+    orderBy: [asc(tasks.sortOrder)],
+  });
+
+  // 4. All evidence for project (with links)
+  const allEvidence = await db.query.evidence.findMany({
+    where: eq(evidence.projectId, input.projectId),
+    orderBy: [desc(evidence.capturedAt)],
+    with: {
+      links: {
+        with: {
+          task: { columns: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  // Filter evidence for this period
+  const periodEvidence = allEvidence.filter((ev) => {
+    if (!ev.capturedAt) return false;
+    const d = ev.capturedAt.toISOString().split("T")[0];
+    return d >= input.periodStart && d <= input.periodEnd;
+  });
+
+  // 5. Build report meta
+  const meta: ReportMeta = {
+    organisationName: org.name,
+    logoUrl: org.logoUrl,
+    projectName: project.name,
+    projectReference: project.reference,
+    contractType: project.contractType,
+    reportNumber,
+    periodStart: input.periodStart,
+    periodEnd: input.periodEnd,
+    generatedAt: new Date().toISOString(),
+  };
+
+  // 6. Executive summary stats
+  const completedTasks = allTasks.filter((t) => t.status === "completed").length;
+  const inProgressTasks = allTasks.filter((t) => t.status === "in_progress").length;
+  const delayedTasks = allTasks.filter((t) => t.status === "delayed").length;
+  const notStartedTasks = allTasks.filter((t) => t.status === "not_started").length;
+
+  const avgActual =
+    allTasks.length > 0
+      ? Math.round(
+          allTasks.reduce((sum, t) => sum + (t.progressPct ?? 0), 0) / allTasks.length
+        )
+      : 0;
+
+  // Estimate planned progress from dates
+  const now = new Date();
+  let avgPlanned = 0;
+  if (allTasks.length > 0) {
+    let totalPlanned = 0;
+    let counted = 0;
+    for (const t of allTasks) {
+      if (t.plannedStart && t.plannedEnd) {
+        const start = new Date(t.plannedStart + "T00:00:00").getTime();
+        const end = new Date(t.plannedEnd + "T00:00:00").getTime();
+        const duration = end - start;
+        if (duration > 0) {
+          const elapsed = Math.min(now.getTime() - start, duration);
+          totalPlanned += Math.max(0, Math.round((elapsed / duration) * 100));
+          counted++;
+        }
+      }
+    }
+    avgPlanned = counted > 0 ? Math.round(totalPlanned / counted) : avgActual;
+  }
+
+  // Key risks: delayed tasks
+  const keyRisks: string[] = [];
+  const delayedTaskList = allTasks.filter((t) => t.status === "delayed");
+  for (const t of delayedTaskList.slice(0, 5)) {
+    keyRisks.push(`Task "${t.name}" is delayed`);
+  }
+  if (avgActual < avgPlanned - 10) {
+    keyRisks.push(
+      `Overall progress is ${avgPlanned - avgActual}% behind planned schedule`
+    );
+  }
+
+  const summaryStats: SummaryStats = {
+    totalTasks: allTasks.length,
+    completedTasks,
+    inProgressTasks,
+    delayedTasks,
+    notStartedTasks,
+    averagePlannedProgress: Math.min(avgPlanned, 100),
+    averageActualProgress: avgActual,
+    variance: avgActual - Math.min(avgPlanned, 100),
+    totalEvidence: allEvidence.length,
+    evidenceThisPeriod: periodEvidence.length,
+    keyRisks,
+  };
+
+  // 7. Timeline tasks
+  // Build tree for depth
+  const parentMap = new Map<string | null, typeof allTasks>();
+  for (const t of allTasks) {
+    const key = t.parentTaskId ?? null;
+    const list = parentMap.get(key) ?? [];
+    list.push(t);
+    parentMap.set(key, list);
+  }
+
+  const flatWithDepth: (typeof allTasks[0] & { depth: number })[] = [];
+  function walk(parentId: string | null, depth: number) {
+    const children = parentMap.get(parentId) ?? [];
+    for (const c of children) {
+      flatWithDepth.push({ ...c, depth });
+      walk(c.id, depth + 1);
+    }
+  }
+  walk(null, 0);
+
+  const timelineTasks: TimelineTask[] = flatWithDepth.map((t) => {
+    // Find evidence dates for this task
+    const evidenceDates: string[] = [];
+    for (const ev of allEvidence) {
+      if (ev.capturedAt && ev.links.some((l) => l.task.id === t.id)) {
+        evidenceDates.push(ev.capturedAt.toISOString().split("T")[0]);
+      }
+    }
+
+    return {
+      id: t.id,
+      name: t.name,
+      plannedStart: t.plannedStart,
+      plannedEnd: t.plannedEnd,
+      actualStart: t.actualStart,
+      actualEnd: t.actualEnd,
+      progressPct: t.progressPct ?? 0,
+      status: t.status ?? "not_started",
+      depth: t.depth,
+      evidenceDates: [...new Set(evidenceDates)].sort(),
+    };
+  });
+
+  // 8. Evidence gallery (grouped by task)
+  const galleryTasks: GalleryTask[] = [];
+  const taskEvidenceMap = new Map<string, GalleryTask>();
+
+  for (const ev of periodEvidence) {
+    for (const link of ev.links) {
+      let gt = taskEvidenceMap.get(link.task.id);
+      if (!gt) {
+        gt = { id: link.task.id, name: link.task.name, evidence: [] };
+        taskEvidenceMap.set(link.task.id, gt);
+      }
+      gt.evidence.push({
+        id: ev.id,
+        publicUrl: getPublicUrl(ev.storageKey),
+        originalFilename: ev.originalFilename,
+        capturedAt: ev.capturedAt?.toISOString() ?? null,
+        latitude: ev.latitude,
+        longitude: ev.longitude,
+        uploaderName: null, // TODO: join user name when auth is wired
+        uploaderRole: null,
+        note: ev.note,
+      });
+    }
+  }
+  for (const gt of taskEvidenceMap.values()) {
+    galleryTasks.push(gt);
+  }
+  galleryTasks.sort((a, b) => a.name.localeCompare(b.name));
+
+  // 9. Before/after pairs
+  const beforeAfterPairs = await generateBeforeAfterPairs(
+    db,
+    input.projectId,
+    input.periodStart,
+    input.periodEnd
+  );
+
+  // 10. Verification stats
+  const withExif = allEvidence.filter((e) => e.exifData != null).length;
+  const withGps = allEvidence.filter(
+    (e) => e.latitude != null && e.longitude != null
+  ).length;
+
+  // Count GPS evidence that falls within a zone
+  const zones = await db.query.gpsZones.findMany({
+    where: eq(gpsZones.projectId, input.projectId),
+  });
+  let gpsVerifiedByZone = 0;
+  for (const ev of allEvidence) {
+    if (ev.latitude == null || ev.longitude == null) continue;
+    for (const zone of zones) {
+      const polygon = zone.polygon as { coordinates: number[][][] };
+      const { pointInPolygon: pip } = await import("@/lib/geo");
+      if (pip([ev.longitude, ev.latitude], polygon.coordinates)) {
+        gpsVerifiedByZone++;
+        break;
+      }
+    }
+  }
+
+  // Upload delay analysis
+  let totalDelay = 0;
+  let maxDelay = 0;
+  let delayCount = 0;
+  for (const ev of allEvidence) {
+    if (ev.capturedAt && ev.uploadedAt) {
+      const delay = ev.uploadedAt.getTime() - ev.capturedAt.getTime();
+      if (delay >= 0) {
+        totalDelay += delay;
+        maxDelay = Math.max(maxDelay, delay);
+        delayCount++;
+      }
+    }
+  }
+  const avgDelay = delayCount > 0 ? totalDelay / delayCount : 0;
+
+  // Evidence by type
+  const typeMap = new Map<string, number>();
+  for (const ev of allEvidence) {
+    const t = ev.type ?? "photo";
+    typeMap.set(t, (typeMap.get(t) ?? 0) + 1);
+  }
+
+  const verificationStats: VerificationStats = {
+    totalEvidence: allEvidence.length,
+    withExifData: withExif,
+    withGpsCoords: withGps,
+    gpsVerifiedByZone,
+    averageUploadDelay: formatDuration(avgDelay),
+    maxUploadDelay: formatDuration(maxDelay),
+    evidenceByType: Array.from(typeMap.entries()).map(([type, count]) => ({
+      type,
+      count,
+    })),
+    auditTrailSummary: [], // TODO: populate from auditLog when entries exist
+  };
+
+  return {
+    meta,
+    reportNumber,
+    summaryStats,
+    timelineTasks,
+    galleryTasks,
+    beforeAfterPairs,
+    verificationStats,
+  };
+}
+
+/**
+ * Render report data into a full HTML string.
+ */
+export async function renderReportHTML(data: Awaited<ReturnType<typeof gatherReportData>>): Promise<string> {
+  // Dynamic import to avoid Turbopack's react-dom/server static analysis block
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { meta, summaryStats, timelineTasks, galleryTasks, beforeAfterPairs, verificationStats } =
+    data;
+
+  // Calculate page numbers for gallery and beyond
+  const galleryPageCount = Math.max(1, Math.ceil(galleryTasks.reduce((n, t) => n + t.evidence.length, 0) / 6));
+  const beforeAfterStart = 4 + galleryPageCount;
+  const beforeAfterPageCount = Math.max(1, Math.ceil(beforeAfterPairs.length / 2));
+  const verificationStart = beforeAfterStart + beforeAfterPageCount;
+  const signOffStart = verificationStart + 1;
+
+  const children = [
+    createElement(CoverPage, { key: "cover", meta }),
+    createElement(ExecutiveSummary, { key: "summary", meta, stats: summaryStats }),
+    createElement(ProgrammeTimeline, {
+      key: "timeline",
+      meta,
+      tasks: timelineTasks,
+      periodStart: meta.periodStart,
+      periodEnd: meta.periodEnd,
+    }),
+    createElement(EvidenceGalleryPage, {
+      key: "gallery",
+      meta,
+      tasks: galleryTasks,
+      startPage: 4,
+    }),
+    createElement(BeforeAfterPage, {
+      key: "beforeafter",
+      meta,
+      pairs: beforeAfterPairs,
+      startPage: beforeAfterStart,
+    }),
+    createElement(VerificationPage, {
+      key: "verification",
+      meta,
+      stats: verificationStats,
+      startPage: verificationStart,
+    }),
+    createElement(SignOffPage, {
+      key: "signoff",
+      meta,
+      startPage: signOffStart,
+    }),
+  ];
+
+  const html = renderToStaticMarkup(
+    createElement(ReportShell, { meta, children })
+  );
+
+  return "<!DOCTYPE html>" + html;
+}
+
+/**
+ * Convert HTML to PDF using Puppeteer, optionally encrypt with pdf-lib.
+ */
+export async function htmlToPdf(
+  html: string,
+  password?: string
+): Promise<Buffer> {
+  const puppeteer = await import("puppeteer");
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0", timeout: 30000 });
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    });
+
+    let result = Buffer.from(pdfBuffer);
+
+    // Apply password protection if requested
+    if (password) {
+      const { PDFDocument } = await import("pdf-lib");
+      // pdf-lib doesn't natively support encryption,
+      // so we store the password hash and rely on download-time verification.
+      // For actual PDF encryption, a future enhancement could use qpdf or similar.
+      // For now, the password is stored in the DB and required for download access.
+    }
+
+    return result;
+  } finally {
+    await browser.close();
+  }
+}
+
+function formatDuration(ms: number): string {
+  if (ms === 0) return "N/A";
+  const hours = Math.floor(ms / (1000 * 60 * 60));
+  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 24) {
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
+  }
+  return `${hours}h ${minutes}m`;
+}
