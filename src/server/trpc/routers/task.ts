@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq, asc, and, sql } from "drizzle-orm";
-import { createTRPCRouter, protectedProcedure } from "../index";
+import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
 import { tasks } from "@/server/db/schema";
 import { detectAndParse } from "@/server/services/programme-import";
 import { assertProjectAccess } from "../helpers";
@@ -149,7 +149,7 @@ export const taskRouter = createTRPCRouter({
       return task;
     }),
 
-  delete: protectedProcedure
+  delete: adminProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.transaction(async (tx) => {

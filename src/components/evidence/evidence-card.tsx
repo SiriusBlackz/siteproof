@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Calendar, Film } from "lucide-react";
+import { MapPin, Calendar, Film, Check } from "lucide-react";
 
 interface LinkedTask {
   taskId: string;
@@ -24,9 +24,11 @@ export interface EvidenceItem {
 interface EvidenceCardProps {
   item: EvidenceItem;
   onClick?: () => void;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export function EvidenceCard({ item, onClick }: EvidenceCardProps) {
+export function EvidenceCard({ item, onClick, selected, onToggleSelect }: EvidenceCardProps) {
   const isVideo = item.type === "video";
   const hasGps = item.latitude != null && item.longitude != null;
   const capturedDate = item.capturedAt
@@ -39,7 +41,11 @@ export function EvidenceCard({ item, onClick }: EvidenceCardProps) {
 
   return (
     <Card
-      className="overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all group"
+      className={`overflow-hidden cursor-pointer transition-all group ${
+        selected
+          ? "ring-2 ring-primary"
+          : "hover:ring-2 hover:ring-primary/20"
+      }`}
       onClick={onClick}
     >
       <div className="relative aspect-square bg-muted">
@@ -54,6 +60,22 @@ export function EvidenceCard({ item, onClick }: EvidenceCardProps) {
             className="h-full w-full object-cover"
             loading="lazy"
           />
+        )}
+        {onToggleSelect && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect();
+            }}
+            className={`absolute top-1.5 left-1.5 flex h-6 w-6 items-center justify-center rounded border-2 transition-colors ${
+              selected
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-white/70 bg-black/30 text-transparent hover:border-white"
+            }`}
+          >
+            <Check className="h-3.5 w-3.5" />
+          </button>
         )}
         {hasGps && (
           <div className="absolute top-1.5 right-1.5">

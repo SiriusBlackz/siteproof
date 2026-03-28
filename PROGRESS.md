@@ -25,7 +25,7 @@
 ### Phase 4 — Polish ✅ (except Stripe)
 15. **PWA setup** — manifest.json, service worker (network-first nav, cache-first static), IndexedDB offline queue, usePWA hook (online status + install prompt), PWA meta tags
 16. **Mobile capture flow** — full-screen camera with flash/switch/GPS/haptic, batch photo review with per-photo task linking + notes, XHR upload progress, offline IndexedDB fallback
-17. **Stripe integration** — NOT YET IMPLEMENTED
+17. **Stripe integration** — Checkout flow, webhook handler, billing banner, portal session, dev bypass (coded, uncommitted)
 18. **Audit log UI** — chronological feed with user avatars, action badges, filters (action type, date), CSV export
 19. **Gantt chart** — exists in report templates but NOT as standalone page view
 
@@ -63,7 +63,7 @@
 ## What to Build Next
 
 ### Revenue Blockers
-1. **Stripe integration** — subscription on project create, enforce limits, webhook handlers
+1. ~~**Stripe integration**~~ — coded, uncommitted. Commit when ready to lock in.
 2. **R2 storage setup** — configure Cloudflare R2 bucket for production evidence storage
 
 ### Should-Fix Before Launch

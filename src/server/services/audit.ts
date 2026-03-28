@@ -12,7 +12,11 @@ export type AuditAction =
   | "link"
   | "unlink"
   | "generate"
-  | "import";
+  | "import"
+  | "subscribe"
+  | "payment_failed"
+  | "cancel_subscription"
+  | "bulk_link";
 
 export type AuditEntityType =
   | "project"
@@ -20,7 +24,8 @@ export type AuditEntityType =
   | "evidence"
   | "evidence_link"
   | "report"
-  | "gps_zone";
+  | "gps_zone"
+  | "subscription";
 
 /**
  * Write an audit log entry. Fire-and-forget — errors are logged but don't

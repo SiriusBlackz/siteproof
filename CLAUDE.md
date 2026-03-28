@@ -400,7 +400,7 @@ siteproof/
 ### Phase 4 — Polish & billing
 15. ~~PWA setup (manifest, service worker)~~ ✅
 16. ~~Mobile capture flow~~ ✅
-17. Stripe integration
+17. ~~Stripe integration~~ ✅ (coded, uncommitted)
 18. ~~Audit log UI~~ ✅
 19. Gantt chart with evidence markers
 

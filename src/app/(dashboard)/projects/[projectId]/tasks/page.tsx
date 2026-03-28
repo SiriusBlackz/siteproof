@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TaskList } from "@/components/tasks/task-list";
 import { TaskFormDialog, type TaskFormValues } from "@/components/tasks/task-form";
 import { ImportDialog } from "@/components/tasks/import-dialog";
+import { ProjectBreadcrumb } from "@/components/layout/breadcrumb";
 import { Plus, FileUp } from "lucide-react";
 import { toast } from "sonner";
 
@@ -122,6 +123,7 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-4">
+      <ProjectBreadcrumb items={[{ label: "Tasks" }]} />
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Tasks</h2>
         <div className="flex items-center gap-2">

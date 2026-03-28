@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { ReportList } from "@/components/reports/report-list";
 import { GenerateDialog } from "@/components/reports/generate-dialog";
+import { ProjectBreadcrumb } from "@/components/layout/breadcrumb";
 import { FileText } from "lucide-react";
 
 export default function ReportsPage() {
@@ -33,6 +34,7 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-4">
+      <ProjectBreadcrumb items={[{ label: "Reports" }]} />
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Reports</h2>
         <Button onClick={() => setGenerateOpen(true)}>

@@ -8,6 +8,19 @@ import { trpc } from "@/lib/trpc";
 import { Upload, X, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
+
+type AllowedMimeType = "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/heif" | "video/mp4" | "video/quicktime" | "video/webm";
+
 interface QueueItem {
   id: string;
   file: File;
@@ -109,7 +122,7 @@ export function UploadQueue({ projectId, onUploadComplete }: UploadQueueProps) {
         const { uploadUrl, storageKey, isLocal } = await getUploadUrl.mutateAsync({
           projectId,
           filename: item.file.name,
-          contentType: item.file.type,
+          contentType: item.file.type as AllowedMimeType,
           fileSizeBytes: item.file.size,
         });
 
@@ -148,7 +161,21 @@ export function UploadQueue({ projectId, onUploadComplete }: UploadQueueProps) {
   function handleFiles(files: FileList | null) {
     if (!files) return;
 
-    const newItems: QueueItem[] = Array.from(files).map((file) => ({
+    const accepted: File[] = [];
+    const rejected: string[] = [];
+    for (const file of Array.from(files)) {
+      if (ALLOWED_MIME_TYPES.has(file.type)) {
+        accepted.push(file);
+      } else {
+        rejected.push(file.name);
+      }
+    }
+    if (rejected.length > 0) {
+      toast.error(`Unsupported file type: ${rejected.join(", ")}. Accepted: JPEG, PNG, WebP, HEIC, MP4, MOV, WebM`);
+    }
+    if (accepted.length === 0) return;
+
+    const newItems: QueueItem[] = accepted.map((file) => ({
       id: crypto.randomUUID(),
       file,
       status: "pending" as const,

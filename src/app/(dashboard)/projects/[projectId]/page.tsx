@@ -7,7 +7,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Settings,
   ListTodo,
@@ -18,19 +17,38 @@ import {
   Building2,
   FileCheck,
   ClipboardList,
+  ImageIcon,
+  ChevronRight,
 } from "lucide-react";
+import { BillingBanner } from "@/components/projects/billing-banner";
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
   const { data: project, isLoading } = trpc.project.get.useQuery({
     id: params.projectId,
   });
+  const { data: tasks = [] } = trpc.task.list.useQuery(
+    { projectId: params.projectId },
+    { enabled: !!params.projectId }
+  );
+  const { data: evidenceData } = trpc.evidence.list.useQuery(
+    { projectId: params.projectId, limit: 1 },
+    { enabled: !!params.projectId }
+  );
+  const { data: reportsData } = trpc.report.list.useQuery(
+    { projectId: params.projectId },
+    { enabled: !!params.projectId }
+  );
 
   if (isLoading) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-64 animate-pulse rounded bg-muted" />
-        <div className="h-48 animate-pulse rounded-lg border bg-muted" />
+        <div className="grid gap-3 md:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-lg border bg-muted" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -43,99 +61,134 @@ export default function ProjectDetailPage() {
     active: "bg-green-100 text-green-800",
     archived: "bg-gray-100 text-gray-800",
     completed: "bg-blue-100 text-blue-800",
+    pending_payment: "bg-amber-100 text-amber-800",
+    payment_failed: "bg-red-100 text-red-800",
+    cancelled: "bg-gray-100 text-gray-800",
   };
 
-  const subPages = [
-    { href: `/capture?projectId=${project.id}`, label: "Capture", icon: Camera },
-    { href: `/projects/${project.id}/tasks`, label: "Tasks", icon: ListTodo },
-    { href: `/projects/${project.id}/evidence`, label: "Evidence", icon: FileCheck },
-    { href: `/projects/${project.id}/zones`, label: "GPS Zones", icon: Map },
-    { href: `/projects/${project.id}/reports`, label: "Reports", icon: FileText },
-    { href: `/projects/${project.id}/audit`, label: "Audit Log", icon: ClipboardList },
-    { href: `/projects/${project.id}/settings`, label: "Settings", icon: Settings },
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((t) => t.status === "completed").length;
+  const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const totalReports = reportsData?.length ?? 0;
+
+  const navSections = [
+    {
+      label: "Work",
+      items: [
+        { href: `/capture?projectId=${project.id}`, label: "Capture Photos", icon: Camera, description: "Take site photos" },
+        { href: `/projects/${project.id}/tasks`, label: "Tasks", icon: ListTodo, description: `${totalTasks} tasks, ${completedTasks} done` },
+        { href: `/projects/${project.id}/evidence`, label: "Evidence", icon: ImageIcon, description: "Photos & videos" },
+      ],
+    },
+    {
+      label: "Intelligence",
+      items: [
+        { href: `/projects/${project.id}/zones`, label: "GPS Zones", icon: Map, description: "Auto-link by location" },
+        { href: `/projects/${project.id}/reports`, label: "Reports", icon: FileText, description: `${totalReports} generated` },
+      ],
+    },
+    {
+      label: "Admin",
+      items: [
+        { href: `/projects/${project.id}/audit`, label: "Audit Log", icon: ClipboardList, description: "Activity history" },
+        { href: `/projects/${project.id}/settings`, label: "Settings", icon: Settings, description: "Project config" },
+      ],
+    },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">
-              {project.name}
-            </h1>
-            <Badge
-              variant="secondary"
-              className={statusColors[project.status ?? "active"]}
-            >
-              {project.status}
-            </Badge>
-          </div>
-          {project.reference && (
-            <p className="text-muted-foreground">Ref: {project.reference}</p>
-          )}
-        </div>
-        <Link
-          href={`/projects/${project.id}/settings`}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-        >
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
-        </Link>
-      </div>
+      <BillingBanner status={project.status} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Project Details</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
+          <Badge
+            variant="secondary"
+            className={statusColors[project.status ?? "active"]}
+          >
+            {project.status}
+          </Badge>
+        </div>
+        <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
+          {project.reference && <span>Ref: {project.reference}</span>}
           {project.clientName && (
-            <div className="flex items-center gap-2 text-sm">
-              <Building2 className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Client:</span>
+            <span className="flex items-center gap-1">
+              <Building2 className="h-3.5 w-3.5" />
               {project.clientName}
-            </div>
-          )}
-          {project.contractType && (
-            <div className="flex items-center gap-2 text-sm">
-              <FileCheck className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Contract:</span>
-              {project.contractType}
-            </div>
+            </span>
           )}
           {(project.startDate || project.endDate) && (
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Period:</span>
-              {project.startDate ?? "—"} → {project.endDate ?? "—"}
-            </div>
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" />
+              {project.startDate ?? "—"} to {project.endDate ?? "—"}
+            </span>
           )}
-          {project.reportingFrequency && (
-            <div className="flex items-center gap-2 text-sm">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Reporting:</span>
-              {project.reportingFrequency}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Separator />
-
-      <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-        {subPages.map((page) => (
-          <Link
-            key={page.href}
-            href={page.href}
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "h-auto flex-col gap-1 py-4"
-            )}
-          >
-            <page.icon className="h-5 w-5" />
-            <span className="text-sm">{page.label}</span>
-          </Link>
-        ))}
+        </div>
       </div>
+
+      {/* Progress Stats */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm text-muted-foreground">Progress</p>
+            <p className="text-2xl font-bold">{progressPct}%</p>
+            <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm text-muted-foreground">Tasks</p>
+            <p className="text-2xl font-bold">{completedTasks}<span className="text-base font-normal text-muted-foreground">/{totalTasks}</span></p>
+            <p className="text-xs text-muted-foreground mt-1">completed</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm text-muted-foreground">Evidence</p>
+            <p className="text-2xl font-bold">{evidenceData?.items?.length === 1 && evidenceData?.nextCursor ? "1+" : (evidenceData?.items?.length ?? 0)}</p>
+            <p className="text-xs text-muted-foreground mt-1">photos & videos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm text-muted-foreground">Reports</p>
+            <p className="text-2xl font-bold">{totalReports}</p>
+            <p className="text-xs text-muted-foreground mt-1">generated</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Navigation Sections */}
+      {navSections.map((section) => (
+        <div key={section.label}>
+          <h3 className="text-sm font-medium text-muted-foreground mb-2">{section.label}</h3>
+          <div className="grid gap-2 md:grid-cols-3">
+            {section.items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-accent"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted group-hover:bg-background">
+                  <item.icon className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

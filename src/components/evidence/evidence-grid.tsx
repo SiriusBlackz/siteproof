@@ -5,9 +5,11 @@ import { EvidenceCard, type EvidenceItem } from "./evidence-card";
 interface EvidenceGridProps {
   items: EvidenceItem[];
   onItemClick?: (item: EvidenceItem) => void;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
-export function EvidenceGrid({ items, onItemClick }: EvidenceGridProps) {
+export function EvidenceGrid({ items, onItemClick, selectedIds, onToggleSelect }: EvidenceGridProps) {
   if (items.length === 0) {
     return (
       <div className="py-12 text-center text-muted-foreground">
@@ -23,6 +25,8 @@ export function EvidenceGrid({ items, onItemClick }: EvidenceGridProps) {
           key={item.id}
           item={item}
           onClick={() => onItemClick?.(item)}
+          selected={selectedIds?.has(item.id)}
+          onToggleSelect={onToggleSelect ? () => onToggleSelect(item.id) : undefined}
         />
       ))}
     </div>

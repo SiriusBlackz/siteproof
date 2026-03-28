@@ -29,6 +29,7 @@ import {
   FileUp,
   ArchiveIcon,
 } from "lucide-react";
+import { ProjectBreadcrumb } from "@/components/layout/breadcrumb";
 import { toast } from "sonner";
 
 const ACTION_CONFIG: Record<
@@ -138,6 +139,7 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-4">
+      <ProjectBreadcrumb items={[{ label: "Audit Log" }]} />
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Audit Log</h2>
         <div className="flex items-center gap-2">

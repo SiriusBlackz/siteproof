@@ -8,14 +8,31 @@ import { assertProjectAccess } from "../helpers";
 import { writeAuditLog } from "@/server/services/audit";
 import crypto from "crypto";
 
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+] as const;
+
+const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
+
 export const evidenceRouter = createTRPCRouter({
   getUploadUrl: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
-        filename: z.string().min(1),
-        contentType: z.string().min(1),
-        fileSizeBytes: z.number().positive(),
+        filename: z.string().min(1).max(255),
+        contentType: z.enum(ALLOWED_MIME_TYPES, {
+          error: "File type not allowed. Accepted: JPEG, PNG, WebP, HEIC, MP4, MOV, WebM",
+        }),
+        fileSizeBytes: z.number().positive().max(MAX_FILE_SIZE_BYTES, {
+          error: `File size must be under ${MAX_FILE_SIZE_BYTES / 1024 / 1024} MB`,
+        }),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -164,7 +181,8 @@ export const evidenceRouter = createTRPCRouter({
         where: eq(evidence.id, input.evidenceId),
         columns: { projectId: true },
       });
-      if (ev) await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId);
+      if (!ev) throw new Error("Evidence not found");
+      await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId);
 
       const [link] = await ctx.db
         .insert(evidenceLinks)
@@ -176,7 +194,7 @@ export const evidenceRouter = createTRPCRouter({
         })
         .onConflictDoNothing()
         .returning();
-      if (link && ev) writeAuditLog(ctx.db, { projectId: ev.projectId, userId: ctx.userId, action: "link", entityType: "evidence_link", entityId: link.id, metadata: { evidenceId: input.evidenceId, taskId: input.taskId } });
+      if (link) writeAuditLog(ctx.db, { projectId: ev.projectId, userId: ctx.userId, action: "link", entityType: "evidence_link", entityId: link.id, metadata: { evidenceId: input.evidenceId, taskId: input.taskId } });
       return link ?? { alreadyLinked: true };
     }),
 
@@ -192,7 +210,8 @@ export const evidenceRouter = createTRPCRouter({
         where: eq(evidence.id, input.evidenceId),
         columns: { projectId: true },
       });
-      if (ev) await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId);
+      if (!ev) throw new Error("Evidence not found");
+      await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId);
 
       await ctx.db
         .delete(evidenceLinks)
@@ -202,7 +221,7 @@ export const evidenceRouter = createTRPCRouter({
             eq(evidenceLinks.taskId, input.taskId)
           )
         );
-      if (ev) writeAuditLog(ctx.db, { projectId: ev.projectId, userId: ctx.userId, action: "unlink", entityType: "evidence_link", entityId: input.evidenceId, metadata: { taskId: input.taskId } });
+      writeAuditLog(ctx.db, { projectId: ev.projectId, userId: ctx.userId, action: "unlink", entityType: "evidence_link", entityId: input.evidenceId, metadata: { taskId: input.taskId } });
       return { success: true };
     }),
 
@@ -221,5 +240,50 @@ export const evidenceRouter = createTRPCRouter({
         capturedAt: item.capturedAt,
         projectId: item.projectId,
       });
+    }),
+
+  bulkLink: protectedProcedure
+    .input(
+      z.object({
+        evidenceIds: z.array(z.string().uuid()).min(1).max(100),
+        taskId: z.string().uuid(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify all evidence belongs to the same project and user has access
+      const items = await ctx.db.query.evidence.findMany({
+        where: sql`${evidence.id} IN ${input.evidenceIds}`,
+        columns: { id: true, projectId: true },
+      });
+      if (items.length !== input.evidenceIds.length) {
+        throw new Error("One or more evidence items not found");
+      }
+      const projectIds = new Set(items.map((e) => e.projectId));
+      for (const pid of projectIds) {
+        await assertProjectAccess(ctx.db, pid, ctx.orgId);
+      }
+
+      // Insert links, skip duplicates
+      const values = input.evidenceIds.map((eid) => ({
+        evidenceId: eid,
+        taskId: input.taskId,
+        linkMethod: "manual" as const,
+      }));
+      await ctx.db
+        .insert(evidenceLinks)
+        .values(values)
+        .onConflictDoNothing();
+
+      const projectId = items[0].projectId;
+      writeAuditLog(ctx.db, {
+        projectId,
+        userId: ctx.userId,
+        action: "bulk_link",
+        entityType: "evidence_link",
+        entityId: input.taskId,
+        metadata: { evidenceCount: input.evidenceIds.length, taskId: input.taskId },
+      });
+
+      return { linked: input.evidenceIds.length };
     }),
 });

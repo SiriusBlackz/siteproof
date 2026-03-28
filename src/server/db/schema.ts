@@ -10,6 +10,7 @@ import {
   bigint,
   jsonb,
   unique,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
@@ -76,7 +77,10 @@ export const projects = pgTable("projects", {
   stripeSubscriptionId: text("stripe_subscription_id"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow(),
-});
+}, (t) => [
+  index("projects_org_id_idx").on(t.orgId),
+  index("projects_status_idx").on(t.status),
+]);
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   organisation: one(organisations, {
@@ -138,7 +142,10 @@ export const tasks = pgTable("tasks", {
   status: text("status").default("not_started"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow(),
-});
+}, (t) => [
+  index("tasks_project_id_idx").on(t.projectId),
+  index("tasks_status_idx").on(t.status),
+]);
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
   project: one(projects, {
@@ -204,7 +211,11 @@ export const evidence = pgTable("evidence", {
   note: text("note"),
   deviceInfo: text("device_info"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow(),
-});
+}, (t) => [
+  index("evidence_project_id_idx").on(t.projectId),
+  index("evidence_project_created_idx").on(t.projectId, t.createdAt),
+  index("evidence_captured_at_idx").on(t.capturedAt),
+]);
 
 export const evidenceRelations = relations(evidence, ({ one, many }) => ({
   project: one(projects, {
@@ -236,7 +247,10 @@ export const evidenceLinks = pgTable(
     confirmedAt: timestamp("confirmed_at", { withTimezone: true, mode: "date" }),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow(),
   },
-  (t) => [unique().on(t.evidenceId, t.taskId)]
+  (t) => [
+    unique().on(t.evidenceId, t.taskId),
+    index("evidence_links_task_id_idx").on(t.taskId),
+  ]
 );
 
 export const evidenceLinksRelations = relations(evidenceLinks, ({ one }) => ({
@@ -272,7 +286,9 @@ export const reports = pgTable("reports", {
   reportData: jsonb("report_data"),
   status: text("status").default("generating"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow(),
-});
+}, (t) => [
+  index("reports_project_id_idx").on(t.projectId),
+]);
 
 export const reportsRelations = relations(reports, ({ one }) => ({
   project: one(projects, {
@@ -298,7 +314,9 @@ export const auditLog = pgTable("audit_log", {
   entityId: uuid("entity_id").notNull(),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow(),
-});
+}, (t) => [
+  index("audit_log_project_created_idx").on(t.projectId, t.createdAt),
+]);
 
 export const auditLogRelations = relations(auditLog, ({ one }) => ({
   project: one(projects, {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { createTRPCRouter, protectedProcedure } from "../index";
+import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
 import { gpsZones } from "@/server/db/schema";
 import { assertProjectAccess } from "../helpers";
 import { writeAuditLog } from "@/server/services/audit";
@@ -76,7 +76,7 @@ export const zoneRouter = createTRPCRouter({
       return updated;
     }),
 
-  delete: protectedProcedure
+  delete: adminProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const zone = await ctx.db.query.gpsZones.findFirst({

@@ -1,85 +1,97 @@
-import { eq, desc, count, sql, and, gte } from "drizzle-orm";
+import { eq, desc, sql, and, gte, inArray } from "drizzle-orm";
 import { createTRPCRouter, protectedProcedure } from "../index";
 import {
   projects,
   tasks,
   evidence,
-  reports,
   auditLog,
-  users,
 } from "@/server/db/schema";
 
 export const dashboardRouter = createTRPCRouter({
   summary: protectedProcedure.query(async ({ ctx }) => {
-    // Project counts
-    const allProjects = await ctx.db.query.projects.findMany({
-      where: eq(projects.orgId, ctx.orgId),
-      columns: { id: true, status: true },
-    });
-    const activeProjects = allProjects.filter((p) => p.status === "active").length;
-    const archivedProjects = allProjects.filter((p) => p.status === "archived").length;
+    // Project counts with SQL aggregation
+    const projectStats = await ctx.db
+      .select({
+        status: projects.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(projects)
+      .where(eq(projects.orgId, ctx.orgId))
+      .groupBy(projects.status);
 
-    // Task stats across all org projects
-    const projectIds = allProjects.map((p) => p.id);
-    let totalTasks = 0;
-    let completedTasks = 0;
-    let delayedTasks = 0;
-    let totalEvidence = 0;
-    let recentEvidence = 0;
-
-    if (projectIds.length > 0) {
-      const allTasks = await ctx.db.query.tasks.findMany({
-        where: sql`${tasks.projectId} IN ${projectIds}`,
-        columns: { status: true },
-      });
-      totalTasks = allTasks.length;
-      completedTasks = allTasks.filter((t) => t.status === "completed").length;
-      delayedTasks = allTasks.filter((t) => t.status === "delayed").length;
-
-      // Evidence counts
-      const allEvidence = await ctx.db.query.evidence.findMany({
-        where: sql`${evidence.projectId} IN ${projectIds}`,
-        columns: { id: true, createdAt: true },
-      });
-      totalEvidence = allEvidence.length;
-
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      recentEvidence = allEvidence.filter(
-        (e) => e.createdAt && e.createdAt >= sevenDaysAgo
-      ).length;
+    const projectCounts = { total: 0, active: 0, archived: 0 };
+    for (const row of projectStats) {
+      projectCounts.total += row.count;
+      if (row.status === "active") projectCounts.active = row.count;
+      if (row.status === "archived") projectCounts.archived = row.count;
     }
 
+    // Get project IDs for sub-queries (just IDs, not full rows)
+    const orgProjectIds = await ctx.db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.orgId, ctx.orgId));
+    const projectIds = orgProjectIds.map((p) => p.id);
+
+    if (projectIds.length === 0) {
+      return {
+        projects: projectCounts,
+        tasks: { total: 0, completed: 0, delayed: 0 },
+        evidence: { total: 0, thisWeek: 0 },
+      };
+    }
+
+    // Task stats with SQL aggregation
+    const taskStats = await ctx.db
+      .select({
+        status: tasks.status,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(tasks)
+      .where(inArray(tasks.projectId, projectIds))
+      .groupBy(tasks.status);
+
+    const taskCounts = { total: 0, completed: 0, delayed: 0 };
+    for (const row of taskStats) {
+      taskCounts.total += row.count;
+      if (row.status === "completed") taskCounts.completed = row.count;
+      if (row.status === "delayed") taskCounts.delayed = row.count;
+    }
+
+    // Evidence counts with SQL aggregation
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [evidenceStats] = await ctx.db
+      .select({
+        total: sql<number>`count(*)::int`,
+        thisWeek: sql<number>`count(*) filter (where ${evidence.createdAt} >= ${sevenDaysAgo})::int`,
+      })
+      .from(evidence)
+      .where(inArray(evidence.projectId, projectIds));
+
     return {
-      projects: {
-        total: allProjects.length,
-        active: activeProjects,
-        archived: archivedProjects,
-      },
-      tasks: {
-        total: totalTasks,
-        completed: completedTasks,
-        delayed: delayedTasks,
-      },
+      projects: projectCounts,
+      tasks: taskCounts,
       evidence: {
-        total: totalEvidence,
-        thisWeek: recentEvidence,
+        total: evidenceStats?.total ?? 0,
+        thisWeek: evidenceStats?.thisWeek ?? 0,
       },
     };
   }),
 
   recentActivity: protectedProcedure.query(async ({ ctx }) => {
-    // Get project IDs for this org
-    const orgProjects = await ctx.db.query.projects.findMany({
-      where: eq(projects.orgId, ctx.orgId),
-      columns: { id: true },
-    });
-    const projectIds = orgProjects.map((p) => p.id);
+    // Get project IDs for this org (just IDs)
+    const orgProjectIds = await ctx.db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.orgId, ctx.orgId));
+    const projectIds = orgProjectIds.map((p) => p.id);
 
     if (projectIds.length === 0) return [];
 
     const entries = await ctx.db.query.auditLog.findMany({
-      where: sql`${auditLog.projectId} IN ${projectIds}`,
+      where: inArray(auditLog.projectId, projectIds),
       orderBy: [desc(auditLog.createdAt)],
       limit: 15,
       with: {

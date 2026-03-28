@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProjectBreadcrumb } from "@/components/layout/breadcrumb";
 import { MapPin } from "lucide-react";
 
 const ZoneMapEditor = dynamic(
@@ -31,6 +32,7 @@ export default function ZonesPage() {
   if (!hasMapboxToken) {
     return (
       <div className="space-y-4">
+        <ProjectBreadcrumb items={[{ label: "GPS Zones" }]} />
         <h2 className="text-2xl font-bold tracking-tight">GPS Zones</h2>
         <Card>
           <CardHeader>
@@ -53,6 +55,7 @@ export default function ZonesPage() {
 
   return (
     <div className="space-y-4">
+      <ProjectBreadcrumb items={[{ label: "GPS Zones" }]} />
       <h2 className="text-2xl font-bold tracking-tight">GPS Zones</h2>
       <ZoneMapEditor projectId={projectId} />
     </div>
