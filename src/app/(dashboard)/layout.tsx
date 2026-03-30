@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
@@ -8,7 +9,12 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  if (!isDemoMode()) {
+  if (isDemoMode()) {
+    const cookieStore = await cookies();
+    if (!cookieStore.get("demo_user")?.value) {
+      redirect("/demo");
+    }
+  } else {
     const { auth } = await import("@clerk/nextjs/server");
     const { userId } = await auth();
     if (!userId) {
