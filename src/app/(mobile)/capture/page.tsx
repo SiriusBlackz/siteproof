@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,14 @@ interface CapturedPhoto {
 }
 
 export default function CapturePage() {
+  return (
+    <Suspense>
+      <CaptureContent />
+    </Suspense>
+  );
+}
+
+function CaptureContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId") ?? "";

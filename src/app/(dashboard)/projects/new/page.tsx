@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { trpc } from "@/lib/trpc";
@@ -7,6 +8,14 @@ import { ProjectForm, type ProjectFormValues } from "@/components/projects/proje
 import { toast } from "sonner";
 
 export default function NewProjectPage() {
+  return (
+    <Suspense>
+      <NewProjectContent />
+    </Suspense>
+  );
+}
+
+function NewProjectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 

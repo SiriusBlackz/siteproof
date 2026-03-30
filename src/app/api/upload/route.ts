@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import { join, dirname } from "path";
-import { auth } from "@clerk/nextjs/server";
+import { isDemoMode } from "@/lib/demo";
 
 const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB
 const VALID_KEY_PATTERN = /^projects\/[0-9a-f-]+\/evidence\/[0-9a-f-]+\/.+$/;
@@ -11,10 +11,13 @@ const VALID_KEY_PATTERN = /^projects\/[0-9a-f-]+\/evidence\/[0-9a-f-]+\/.+$/;
  * Writes files to public/uploads/{storageKey} so Next.js serves them statically.
  */
 export async function POST(req: NextRequest) {
-  // Require authentication
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Require authentication (skip in demo mode)
+  if (!isDemoMode()) {
+    const { auth } = await import("@clerk/nextjs/server");
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const storageKey = req.nextUrl.searchParams.get("key");

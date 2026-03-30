@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,14 @@ interface ReviewPhoto {
 }
 
 export default function ReviewPage() {
+  return (
+    <Suspense>
+      <ReviewContent />
+    </Suspense>
+  );
+}
+
+function ReviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId") ?? "";

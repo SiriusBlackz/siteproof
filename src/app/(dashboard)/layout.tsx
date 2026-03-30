@@ -1,16 +1,19 @@
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { isDemoMode } from "@/lib/demo";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = await auth();
-  if (!userId) {
-    redirect("/sign-in");
+  if (!isDemoMode()) {
+    const { auth } = await import("@clerk/nextjs/server");
+    const { userId } = await auth();
+    if (!userId) {
+      redirect("/sign-in");
+    }
   }
 
   return (
