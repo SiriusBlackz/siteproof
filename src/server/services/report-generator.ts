@@ -390,7 +390,7 @@ export async function htmlToPdf(
     browser = await puppeteerCore.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(
-        "https://github.com/nicholasgriffintn/puppeteer-core-chromium-pack/releases/download/v143.0.0/chromium-v143.0.0-pack.tar"
+        "https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar"
       ),
       headless: true,
     });
