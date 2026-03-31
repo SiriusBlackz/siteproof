@@ -98,25 +98,44 @@ export const reportRouter = createTRPCRouter({
           const html = await renderReportHTML(reportData);
           const pdfBuffer = await htmlToPdf(html, input.password);
 
-          const { writeFile, mkdir } = await import("fs/promises");
-          const { join, dirname } = await import("path");
           const storageKey = `projects/${input.projectId}/reports/report-${reportNumber}.pdf`;
-          const uploadDir = process.env.VERCEL ? "/tmp/uploads" : join(process.cwd(), "public", "uploads");
-          const filePath = join(uploadDir, storageKey);
-          await mkdir(dirname(filePath), { recursive: true });
-          await writeFile(filePath, pdfBuffer);
 
-          await ctx.db
-            .update(reports)
-            .set({
-              status: "completed",
-              pdfStorageKey: storageKey,
-              reportData: {
-                stats: reportData.summaryStats,
-                meta: reportData.meta,
-              },
-            })
-            .where(eq(reports.id, report.id));
+          const isR2 = process.env.R2_ACCESS_KEY_ID && process.env.R2_ACCESS_KEY_ID !== "PLACEHOLDER";
+
+          if (!isR2) {
+            // No R2 — store PDF base64 in DB for retrieval via /api/reports/[id]/pdf
+            await ctx.db
+              .update(reports)
+              .set({
+                status: "completed",
+                pdfStorageKey: storageKey,
+                reportData: {
+                  stats: reportData.summaryStats,
+                  meta: reportData.meta,
+                  pdfBase64: pdfBuffer.toString("base64"),
+                },
+              })
+              .where(eq(reports.id, report.id));
+          } else {
+            // R2 configured — write to storage
+            const { writeFile, mkdir } = await import("fs/promises");
+            const { join, dirname } = await import("path");
+            const filePath = join(process.cwd(), "public", "uploads", storageKey);
+            await mkdir(dirname(filePath), { recursive: true });
+            await writeFile(filePath, pdfBuffer);
+
+            await ctx.db
+              .update(reports)
+              .set({
+                status: "completed",
+                pdfStorageKey: storageKey,
+                reportData: {
+                  stats: reportData.summaryStats,
+                  meta: reportData.meta,
+                },
+              })
+              .where(eq(reports.id, report.id));
+          }
         } catch (syncErr) {
           console.error("[report.generate] Sync fallback failed:", syncErr);
           await ctx.db
@@ -155,6 +174,15 @@ export const reportRouter = createTRPCRouter({
           .update(input.password)
           .digest("hex");
         if (hash !== report.passwordHash) throw new Error("Incorrect password");
+      }
+
+      // If PDF is stored in DB (no R2), serve via dedicated API route
+      const reportDataObj = report.reportData as Record<string, unknown> | null;
+      if (reportDataObj?.pdfBase64) {
+        return {
+          url: `/api/reports/${report.id}/pdf`,
+          filename: `report-${report.reportNumber}.pdf`,
+        };
       }
 
       return {
