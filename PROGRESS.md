@@ -36,45 +36,46 @@
 
 ---
 
-## Current State
+## Current State (2026-04-01)
 
 ### What's Working
-- `npm run build` — zero errors, 18 routes
+- `npm run build` — zero errors, 20 routes
+- Deployed and functional at https://siteproof-ashy.vercel.app
 - Clerk auth with auto-provisioning (org + user created on first sign-in)
+- Demo mode: Clerk bypass, dual-contractor selector, Stripe bypass
 - All endpoints protected + org-isolated
 - 7 tRPC routers: project, task, evidence, zone, report, audit, dashboard
 - Mobile capture → review → upload → gallery flow
-- PDF report generation (sync fallback when Inngest not configured)
+- Evidence uploads working on Vercel (via /tmp + serve route)
+- PDF report generation working on Vercel (@sparticuz/chromium-min + DB storage)
+- Interactive Gantt chart with list/gantt toggle, zoom, evidence markers
 - Audit trail for all mutations with CSV export
 - PWA installable with offline capture queue
+- Stripe billing coded (bypassed in demo mode)
+- Error pages + breadcrumb navigation on all project sub-pages
 
-### Environment Variables Status
-- **Configured:** Clerk (pk_test/sk_test), DATABASE_URL (Supabase), Clerk sign-in/up URLs
-- **Placeholder:** R2 storage, Stripe, Inngest, Mapbox, Anthropic API
+### Environment Variables on Vercel
+- **Configured:** Clerk (correct names), DATABASE_URL (Supabase pooler), DEMO_MODE, sign-in/up URLs
+- **Not configured:** R2 storage, Stripe, Inngest, Mapbox, Anthropic API
 
-### API Coverage (26 implemented / 8 from spec remaining)
-**Missing from CLAUDE.md spec:**
-- `project.members.list/add/remove` (multi-user not yet built)
-- `evidence.get` (single item), `evidence.updateNote`, `evidence.delete`
-- Dashboard routes renamed: `dashboard.summary` + `dashboard.recentActivity`
+### Vercel-Specific Adaptations
+- Uploads: write to `/tmp`, serve via `/api/uploads/[...path]` (ephemeral)
+- PDFs: stored as base64 in `report_data` JSONB, served via `/api/reports/[id]/pdf`
+- Chromium: `@sparticuz/chromium-min` + `puppeteer-core` with remote binary download
+- tRPC route: `maxDuration = 60` for report generation
 
 ---
 
 ## What to Build Next
 
-### Revenue Blockers
-1. ~~**Stripe integration**~~ — coded, uncommitted. Commit when ready to lock in.
-2. **R2 storage setup** — configure Cloudflare R2 bucket for production evidence storage
-
-### Should-Fix Before Launch
-3. **Auth page branding** — logo + tagline on sign-in/sign-up
-4. **Global error/404 pages** — `app/error.tsx`, `app/not-found.tsx`
-5. **Breadcrumb navigation** — deep pages need way back
-6. **Inngest configuration** — background report generation
+### Production Readiness
+1. **R2 storage setup** — configure Cloudflare R2 for persistent evidence/PDF storage
+2. **Inngest configuration** — background report generation (sync fallback works)
+3. **App branding** — logo, name, tagline (brand TBD)
 
 ### Nice-to-Have
-7. Project member management (multi-user teams)
-8. Evidence search by metadata
-9. Standalone Gantt chart page
-10. Offline queue status indicator in dashboard
-11. Video playback in evidence detail
+4. Project member management (multi-user teams)
+5. Evidence search by metadata
+6. Offline queue status indicator
+7. Video playback in evidence detail
+8. Fix themeColor viewport warnings
