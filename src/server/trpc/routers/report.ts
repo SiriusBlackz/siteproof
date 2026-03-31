@@ -117,7 +117,8 @@ export const reportRouter = createTRPCRouter({
               },
             })
             .where(eq(reports.id, report.id));
-        } catch {
+        } catch (syncErr) {
+          console.error("[report.generate] Sync fallback failed:", syncErr);
           await ctx.db
             .update(reports)
             .set({ status: "failed" })

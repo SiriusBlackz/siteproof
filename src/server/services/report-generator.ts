@@ -385,11 +385,13 @@ export async function htmlToPdf(
   let browser;
 
   if (process.env.VERCEL) {
-    const chromium = (await import("@sparticuz/chromium")).default;
+    const chromium = (await import("@sparticuz/chromium-min")).default;
     const puppeteerCore = await import("puppeteer-core");
     browser = await puppeteerCore.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(),
+      executablePath: await chromium.executablePath(
+        "https://github.com/nicholasgriffintn/puppeteer-core-chromium-pack/releases/download/v143.0.0/chromium-v143.0.0-pack.tar"
+      ),
       headless: true,
     });
   } else {
