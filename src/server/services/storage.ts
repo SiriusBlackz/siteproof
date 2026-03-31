@@ -44,7 +44,7 @@ export async function getUploadUrl(
     return { uploadUrl, storageKey, isLocal: false };
   }
 
-  // Local fallback — upload goes through /api/upload
+  // Local/demo fallback — upload goes through /api/upload (uses /tmp on Vercel)
   return {
     uploadUrl: `/api/upload?key=${encodeURIComponent(storageKey)}`,
     storageKey,
@@ -55,6 +55,10 @@ export async function getUploadUrl(
 export function getPublicUrl(storageKey: string): string {
   if (isR2Configured) {
     return `${process.env.R2_PUBLIC_URL}/${storageKey}`;
+  }
+  // On Vercel, files are in /tmp — serve via API route
+  if (process.env.VERCEL) {
+    return `/api/uploads/${encodeURIComponent(storageKey)}`;
   }
   return `/uploads/${storageKey}`;
 }

@@ -6,9 +6,18 @@ import { isDemoMode } from "@/lib/demo";
 const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB
 const VALID_KEY_PATTERN = /^projects\/[0-9a-f-]+\/evidence\/[0-9a-f-]+\/.+$/;
 
+/** Resolve upload path — /tmp on Vercel (read-only fs), public/uploads locally */
+function getUploadDir(): string {
+  if (process.env.VERCEL) {
+    return "/tmp/uploads";
+  }
+  return join(process.cwd(), "public", "uploads");
+}
+
 /**
- * Local development fallback for file uploads.
- * Writes files to public/uploads/{storageKey} so Next.js serves them statically.
+ * Local/demo fallback for file uploads.
+ * On Vercel: writes to /tmp/uploads (ephemeral but writable).
+ * Locally: writes to public/uploads/ for static serving.
  */
 export async function POST(req: NextRequest) {
   // Require authentication (skip in demo mode)
@@ -43,7 +52,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File too large" }, { status: 413 });
   }
 
-  const filePath = join(process.cwd(), "public", "uploads", storageKey);
+  const filePath = join(getUploadDir(), storageKey);
   await mkdir(dirname(filePath), { recursive: true });
   await writeFile(filePath, Buffer.from(body));
 
