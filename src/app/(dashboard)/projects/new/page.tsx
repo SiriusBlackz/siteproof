@@ -49,14 +49,13 @@ function NewProjectContent() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Create Project</h1>
         <p className="text-muted-foreground">
-          Set up a new construction project to track progress. You&apos;ll be
-          redirected to complete payment (&#163;99/month).
+          Set up a new construction project to track progress.
         </p>
       </div>
       <ProjectForm
         onSubmit={handleSubmit}
         isSubmitting={createProject.isPending}
-        submitLabel="Create & Pay"
+        submitLabel="Create Project"
       />
     </div>
   );

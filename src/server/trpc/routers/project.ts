@@ -14,10 +14,20 @@ import {
 
 export const projectRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.query.projects.findMany({
+    const result = await ctx.db.query.projects.findMany({
       where: eq(projects.orgId, ctx.orgId),
       orderBy: (projects, { desc }) => [desc(projects.createdAt)],
     });
+
+    // In demo mode, treat pending_payment as active
+    if (process.env.DEMO_MODE === "true") {
+      return result.map((p) => ({
+        ...p,
+        status: p.status === "pending_payment" ? "active" : p.status,
+      }));
+    }
+
+    return result;
   }),
 
   get: protectedProcedure
@@ -28,6 +38,11 @@ export const projectRouter = createTRPCRouter({
       });
       if (!project) throw new Error("Project not found");
       if (project.orgId !== ctx.orgId) throw new Error("Access denied");
+
+      // In demo mode, treat pending_payment as active
+      if (process.env.DEMO_MODE === "true" && project.status === "pending_payment") {
+        return { ...project, status: "active" };
+      }
       return project;
     }),
 
@@ -45,6 +60,7 @@ export const projectRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const stripeConfigured =
+        process.env.DEMO_MODE !== "true" &&
         process.env.STRIPE_SECRET_KEY &&
         !process.env.STRIPE_SECRET_KEY.includes("PLACEHOLDER");
 
