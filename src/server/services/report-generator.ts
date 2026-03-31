@@ -374,17 +374,31 @@ export async function renderReportHTML(data: Awaited<ReturnType<typeof gatherRep
 }
 
 /**
- * Convert HTML to PDF using Puppeteer, optionally encrypt with pdf-lib.
+ * Convert HTML to PDF using Puppeteer.
+ * On Vercel: uses @sparticuz/chromium (serverless-compatible).
+ * Locally: uses full puppeteer with bundled Chromium.
  */
 export async function htmlToPdf(
   html: string,
-  password?: string
+  _password?: string
 ): Promise<Buffer> {
-  const puppeteer = await import("puppeteer");
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+  let browser;
+
+  if (process.env.VERCEL) {
+    const chromium = (await import("@sparticuz/chromium")).default;
+    const puppeteerCore = await import("puppeteer-core");
+    browser = await puppeteerCore.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    });
+  } else {
+    const puppeteer = await import("puppeteer");
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+  }
 
   try {
     const page = await browser.newPage();
@@ -395,18 +409,7 @@ export async function htmlToPdf(
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
     });
 
-    let result = Buffer.from(pdfBuffer);
-
-    // Apply password protection if requested
-    if (password) {
-      const { PDFDocument } = await import("pdf-lib");
-      // pdf-lib doesn't natively support encryption,
-      // so we store the password hash and rely on download-time verification.
-      // For actual PDF encryption, a future enhancement could use qpdf or similar.
-      // For now, the password is stored in the DB and required for download access.
-    }
-
-    return result;
+    return Buffer.from(pdfBuffer);
   } finally {
     await browser.close();
   }

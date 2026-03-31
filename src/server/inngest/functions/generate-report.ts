@@ -52,7 +52,8 @@ export const generateReport = inngest.createFunction(
 
       const { writeFile, mkdir } = await import("fs/promises");
       const { join, dirname } = await import("path");
-      const filePath = join(process.cwd(), "public", "uploads", key);
+      const uploadDir = process.env.VERCEL ? "/tmp/uploads" : join(process.cwd(), "public", "uploads");
+      const filePath = join(uploadDir, key);
       await mkdir(dirname(filePath), { recursive: true });
       await writeFile(filePath, Buffer.from(pdfResult.base64, "base64"));
 

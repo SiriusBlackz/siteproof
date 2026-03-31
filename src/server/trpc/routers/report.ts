@@ -101,7 +101,8 @@ export const reportRouter = createTRPCRouter({
           const { writeFile, mkdir } = await import("fs/promises");
           const { join, dirname } = await import("path");
           const storageKey = `projects/${input.projectId}/reports/report-${reportNumber}.pdf`;
-          const filePath = join(process.cwd(), "public", "uploads", storageKey);
+          const uploadDir = process.env.VERCEL ? "/tmp/uploads" : join(process.cwd(), "public", "uploads");
+          const filePath = join(uploadDir, storageKey);
           await mkdir(dirname(filePath), { recursive: true });
           await writeFile(filePath, pdfBuffer);
 
