@@ -402,7 +402,7 @@ siteproof/
 16. ~~Mobile capture flow~~ ✅
 17. ~~Stripe integration~~ ✅ (coded, uncommitted)
 18. ~~Audit log UI~~ ✅
-19. Gantt chart with evidence markers
+19. ~~Gantt chart with evidence markers~~ ✅
 
 ### Phase 5 — Security & launch hardening ✅
 20. ~~Auth on all endpoints (protectedProcedure + org isolation)~~ ✅

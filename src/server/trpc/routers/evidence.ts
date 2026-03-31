@@ -242,6 +242,33 @@ export const evidenceRouter = createTRPCRouter({
       });
     }),
 
+  /** Evidence dates grouped by task+date for the Gantt chart markers */
+  markers: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      const rows = await ctx.db
+        .select({
+          taskId: evidenceLinks.taskId,
+          date: sql<string>`DATE(${evidence.capturedAt})`.as("date"),
+          count: sql<number>`COUNT(*)::int`.as("count"),
+        })
+        .from(evidenceLinks)
+        .innerJoin(evidence, eq(evidenceLinks.evidenceId, evidence.id))
+        .where(
+          and(
+            eq(evidence.projectId, input.projectId),
+            sql`${evidence.capturedAt} IS NOT NULL`
+          )
+        )
+        .groupBy(evidenceLinks.taskId, sql`DATE(${evidence.capturedAt})`);
+      return rows.map((r) => ({
+        taskId: r.taskId,
+        date: r.date,
+        count: r.count,
+      }));
+    }),
+
   bulkLink: protectedProcedure
     .input(
       z.object({

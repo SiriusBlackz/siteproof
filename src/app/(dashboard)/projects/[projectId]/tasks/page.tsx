@@ -5,14 +5,18 @@ import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { TaskList } from "@/components/tasks/task-list";
+import { GanttChart } from "@/components/tasks/gantt-chart";
 import { TaskFormDialog, type TaskFormValues } from "@/components/tasks/task-form";
 import { ImportDialog } from "@/components/tasks/import-dialog";
 import { ProjectBreadcrumb } from "@/components/layout/breadcrumb";
-import { Plus, FileUp } from "lucide-react";
+import { Plus, FileUp, List, GanttChartSquare } from "lucide-react";
 import { toast } from "sonner";
+
+type ViewMode = "list" | "gantt";
 
 export default function TasksPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const [view, setView] = useState<ViewMode>("list");
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editTask, setEditTask] = useState<{
@@ -24,6 +28,11 @@ export default function TasksPage() {
   const { data: tasks = [], isLoading } = trpc.task.list.useQuery({
     projectId,
   });
+
+  const { data: evidenceMarkers = [] } = trpc.evidence.markers.useQuery(
+    { projectId },
+    { enabled: view === "gantt" }
+  );
 
   const createMutation = trpc.task.create.useMutation({
     onSuccess: () => {
@@ -127,6 +136,28 @@ export default function TasksPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Tasks</h2>
         <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex items-center rounded-md border bg-muted/50 p-0.5">
+            <Button
+              variant={view === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-2.5"
+              onClick={() => setView("list")}
+            >
+              <List className="mr-1 h-3.5 w-3.5" />
+              List
+            </Button>
+            <Button
+              variant={view === "gantt" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-2.5"
+              onClick={() => setView("gantt")}
+            >
+              <GanttChartSquare className="mr-1 h-3.5 w-3.5" />
+              Gantt
+            </Button>
+          </div>
+
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <FileUp className="mr-1 h-4 w-4" />
             Import
@@ -138,12 +169,16 @@ export default function TasksPage() {
         </div>
       </div>
 
-      <TaskList
-        tasks={tasks}
-        onEdit={handleEdit}
-        onDelete={(id) => deleteMutation.mutate({ id })}
-        onReorder={(items) => reorderMutation.mutate({ projectId, items })}
-      />
+      {view === "list" ? (
+        <TaskList
+          tasks={tasks}
+          onEdit={handleEdit}
+          onDelete={(id) => deleteMutation.mutate({ id })}
+          onReorder={(items) => reorderMutation.mutate({ projectId, items })}
+        />
+      ) : (
+        <GanttChart tasks={tasks} evidenceMarkers={evidenceMarkers} />
+      )}
 
       <TaskFormDialog
         open={formOpen}

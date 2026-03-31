@@ -27,7 +27,7 @@
 16. **Mobile capture flow** — full-screen camera with flash/switch/GPS/haptic, batch photo review with per-photo task linking + notes, XHR upload progress, offline IndexedDB fallback
 17. **Stripe integration** — Checkout flow, webhook handler, billing banner, portal session, dev bypass (coded, uncommitted)
 18. **Audit log UI** — chronological feed with user avatars, action badges, filters (action type, date), CSV export
-19. **Gantt chart** — exists in report templates but NOT as standalone page view
+19. **Gantt chart** ✅ — interactive standalone view on tasks page with list/gantt toggle, zoom (months/weeks/days), evidence markers, today line, progress bars, tooltips
 
 ### Phase 5 — Security & Launch Hardening ✅
 20. **Auth on all endpoints** — all 26 tRPC endpoints switched to protectedProcedure, assertProjectAccess() verifies org ownership
