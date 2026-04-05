@@ -88,10 +88,11 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
           task: { columns: { id: true, name: true } },
         },
       },
+      uploader: { columns: { name: true, role: true } },
     },
   });
 
-  // Also load all evidence for verification stats (lightweight — no links needed)
+  // Also load all evidence for summary stats (lightweight — no links needed)
   const allEvidence = await db.query.evidence.findMany({
     where: eq(evidence.projectId, input.projectId),
     columns: {
@@ -112,6 +113,7 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
     logoUrl: org.logoUrl,
     projectName: project.name,
     projectReference: project.reference,
+    clientName: project.clientName,
     contractType: project.contractType,
     reportNumber,
     periodStart: input.periodStart,
@@ -240,8 +242,8 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
         capturedAt: ev.capturedAt?.toISOString() ?? null,
         latitude: ev.latitude,
         longitude: ev.longitude,
-        uploaderName: null, // TODO: join user name when auth is wired
-        uploaderRole: null,
+        uploaderName: ev.uploader?.name ?? null,
+        uploaderRole: ev.uploader?.role ?? null,
         note: ev.note,
       });
     }
@@ -259,9 +261,9 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
     input.periodEnd
   );
 
-  // 10. Verification stats
-  const withExif = allEvidence.filter((e) => e.exifData != null).length;
-  const withGps = allEvidence.filter(
+  // 10. Verification stats (scoped to reporting period)
+  const withExif = periodEvidence.filter((e) => e.exifData != null).length;
+  const withGps = periodEvidence.filter(
     (e) => e.latitude != null && e.longitude != null
   ).length;
 
@@ -269,12 +271,12 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
   const zones = await db.query.gpsZones.findMany({
     where: eq(gpsZones.projectId, input.projectId),
   });
+  const { pointInPolygon: pip } = await import("@/lib/geo");
   let gpsVerifiedByZone = 0;
-  for (const ev of allEvidence) {
+  for (const ev of periodEvidence) {
     if (ev.latitude == null || ev.longitude == null) continue;
     for (const zone of zones) {
       const polygon = zone.polygon as { coordinates: number[][][] };
-      const { pointInPolygon: pip } = await import("@/lib/geo");
       if (pip([ev.longitude, ev.latitude], polygon.coordinates)) {
         gpsVerifiedByZone++;
         break;
@@ -286,7 +288,7 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
   let totalDelay = 0;
   let maxDelay = 0;
   let delayCount = 0;
-  for (const ev of allEvidence) {
+  for (const ev of periodEvidence) {
     if (ev.capturedAt && ev.uploadedAt) {
       const delay = ev.uploadedAt.getTime() - ev.capturedAt.getTime();
       if (delay >= 0) {
@@ -300,13 +302,27 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
 
   // Evidence by type
   const typeMap = new Map<string, number>();
-  for (const ev of allEvidence) {
+  for (const ev of periodEvidence) {
     const t = ev.type ?? "photo";
     typeMap.set(t, (typeMap.get(t) ?? 0) + 1);
   }
 
+  // 11. Audit trail for this period
+  const auditEntries = await db.query.auditLog.findMany({
+    where: and(
+      eq(auditLog.projectId, input.projectId),
+      gte(auditLog.createdAt, periodStart),
+      lte(auditLog.createdAt, periodEnd)
+    ),
+    orderBy: [desc(auditLog.createdAt)],
+    limit: 20,
+    with: {
+      user: { columns: { name: true } },
+    },
+  });
+
   const verificationStats: VerificationStats = {
-    totalEvidence: allEvidence.length,
+    totalEvidence: periodEvidence.length,
     withExifData: withExif,
     withGpsCoords: withGps,
     gpsVerifiedByZone,
@@ -316,7 +332,12 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
       type,
       count,
     })),
-    auditTrailSummary: [], // TODO: populate from auditLog when entries exist
+    auditTrailSummary: auditEntries.map((e) => ({
+      date: e.createdAt?.toISOString() ?? "",
+      user: e.user?.name ?? "System",
+      action: e.action,
+      entity: e.entityType,
+    })),
   };
 
   return {
@@ -339,10 +360,12 @@ export async function renderReportHTML(data: Awaited<ReturnType<typeof gatherRep
   const { meta, summaryStats, timelineTasks, galleryTasks, beforeAfterPairs, verificationStats } =
     data;
 
-  // Calculate page numbers for gallery and beyond
-  const galleryPageCount = Math.max(1, Math.ceil(galleryTasks.reduce((n, t) => n + t.evidence.length, 0) / 6));
+  // Calculate page numbers — skip empty sections
+  const hasGallery = galleryTasks.length > 0;
+  const hasBeforeAfter = beforeAfterPairs.length > 0;
+  const galleryPageCount = hasGallery ? Math.ceil(galleryTasks.reduce((n, t) => n + t.evidence.length, 0) / 6) : 0;
   const beforeAfterStart = 4 + galleryPageCount;
-  const beforeAfterPageCount = Math.max(1, Math.ceil(beforeAfterPairs.length / 2));
+  const beforeAfterPageCount = hasBeforeAfter ? Math.ceil(beforeAfterPairs.length / 2) : 0;
   const verificationStart = beforeAfterStart + beforeAfterPageCount;
   const signOffStart = verificationStart + 1;
 

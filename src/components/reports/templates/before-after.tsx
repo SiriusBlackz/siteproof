@@ -36,16 +36,7 @@ export function BeforeAfterPage({
   }
 
   if (pages.length === 0) {
-    return (
-      <div className="page">
-        <h2>Before & After Comparison</h2>
-        <div style={{ color: "#64748b", fontSize: 12, marginTop: 16 }}>
-          Insufficient evidence to generate before/after comparisons.
-          At least two photos per task within the same GPS zone are required.
-        </div>
-        <PageFooter meta={meta} pageNum={startPage} />
-      </div>
-    );
+    return null;
   }
 
   return (

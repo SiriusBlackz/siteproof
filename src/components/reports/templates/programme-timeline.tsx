@@ -103,7 +103,7 @@ export function ProgrammeTimeline({
                 fontSize: 9,
               }}
             >
-              {task.name}
+              <span title={task.name}>{task.name}</span>
             </div>
           ))}
         </div>

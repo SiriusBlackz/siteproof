@@ -12,6 +12,7 @@ export interface ReportMeta {
   logoUrl: string | null;
   projectName: string;
   projectReference: string | null;
+  clientName?: string | null;
   contractType: string | null;
   reportNumber: number;
   periodStart: string;
@@ -20,12 +21,10 @@ export interface ReportMeta {
 }
 
 const baseStyles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 11px;
     line-height: 1.5;
     color: #1a1a1a;
@@ -35,7 +34,7 @@ const baseStyles = `
   .page {
     width: 210mm;
     min-height: 297mm;
-    padding: 20mm 18mm;
+    padding: 20mm 18mm 24mm;
     page-break-after: always;
     position: relative;
   }

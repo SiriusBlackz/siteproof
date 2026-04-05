@@ -37,9 +37,16 @@ export async function generateBeforeAfterPairs(
     where: eq(gpsZones.projectId, projectId),
   });
 
-  // Get all evidence for this project with linked tasks
+  // Get evidence within the reporting period with linked tasks
+  const periodStartDate = new Date(periodStart + "T00:00:00Z");
+  const periodEndDate = new Date(periodEnd + "T23:59:59.999Z");
+
   const allEvidence = await db.query.evidence.findMany({
-    where: eq(evidence.projectId, projectId),
+    where: and(
+      eq(evidence.projectId, projectId),
+      gte(evidence.capturedAt, periodStartDate),
+      lte(evidence.capturedAt, periodEndDate)
+    ),
     orderBy: [asc(evidence.capturedAt)],
     with: {
       links: {

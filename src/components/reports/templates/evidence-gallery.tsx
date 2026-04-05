@@ -48,15 +48,7 @@ export function EvidenceGalleryPage({
   }
 
   if (pages.length === 0) {
-    return (
-      <div className="page">
-        <h2>Evidence Gallery</h2>
-        <div style={{ color: "#64748b", fontSize: 12, marginTop: 16 }}>
-          No evidence was linked to tasks during this reporting period.
-        </div>
-        <PageFooter meta={meta} pageNum={startPage} />
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -130,8 +122,8 @@ export function EvidenceGalleryPage({
                           </div>
                         )}
                         {ev.note && (
-                          <div style={{ fontStyle: "italic", marginTop: 2 }}>
-                            "{ev.note}"
+                          <div style={{ fontStyle: "italic", marginTop: 2, wordBreak: "break-word", maxHeight: 36, overflow: "hidden" }}>
+                            "{ev.note.length > 200 ? ev.note.slice(0, 200) + "..." : ev.note}"
                           </div>
                         )}
                       </div>

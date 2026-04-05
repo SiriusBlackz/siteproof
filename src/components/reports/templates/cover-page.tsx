@@ -66,6 +66,9 @@ export function CoverPage({ meta }: { meta: ReportMeta }) {
         <table style={{ fontSize: 12 }}>
           <tbody>
             <DetailRow label="Contractor" value={meta.organisationName} />
+            {meta.clientName && (
+              <DetailRow label="Client" value={meta.clientName} />
+            )}
             {meta.contractType && (
               <DetailRow label="Contract Type" value={formatContractType(meta.contractType)} />
             )}
