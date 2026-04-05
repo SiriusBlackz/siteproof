@@ -4,6 +4,15 @@
  */
 
 export function isDemoMode(): boolean {
+  if (
+    process.env.DEMO_MODE === "true" &&
+    process.env.NODE_ENV === "production"
+  ) {
+    console.error(
+      "[SECURITY] DEMO_MODE=true is blocked in production. Ignoring."
+    );
+    return false;
+  }
   return process.env.DEMO_MODE === "true";
 }
 

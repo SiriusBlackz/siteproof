@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../index";
 import { reports } from "@/server/db/schema";
 import { inngest } from "@/server/inngest/client";
 import { getPublicUrl } from "@/server/services/storage";
 import { assertProjectAccess } from "../helpers";
 import { writeAuditLog } from "@/server/services/audit";
-import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
 export const reportRouter = createTRPCRouter({
   list: protectedProcedure
@@ -25,7 +26,7 @@ export const reportRouter = createTRPCRouter({
       const report = await ctx.db.query.reports.findFirst({
         where: eq(reports.id, input.id),
       });
-      if (!report) throw new Error("Report not found");
+      if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Report not found" });
       await assertProjectAccess(ctx.db, report.projectId, ctx.orgId);
       return report;
     }),
@@ -51,7 +52,7 @@ export const reportRouter = createTRPCRouter({
       const reportNumber = (existing[0]?.reportNumber ?? 0) + 1;
 
       const passwordHash = input.password
-        ? crypto.createHash("sha256").update(input.password).digest("hex")
+        ? await bcrypt.hash(input.password, 10)
         : null;
 
       const [report] = await ctx.db
@@ -160,20 +161,17 @@ export const reportRouter = createTRPCRouter({
       const report = await ctx.db.query.reports.findFirst({
         where: eq(reports.id, input.id),
       });
-      if (!report) throw new Error("Report not found");
+      if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Report not found" });
       await assertProjectAccess(ctx.db, report.projectId, ctx.orgId);
 
       if (report.status !== "completed" || !report.pdfStorageKey) {
-        throw new Error("Report is not ready for download");
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Report is not ready for download" });
       }
 
       if (report.passwordHash) {
-        if (!input.password) throw new Error("Password required");
-        const hash = crypto
-          .createHash("sha256")
-          .update(input.password)
-          .digest("hex");
-        if (hash !== report.passwordHash) throw new Error("Incorrect password");
+        if (!input.password) throw new TRPCError({ code: "UNAUTHORIZED", message: "Password required" });
+        const match = await bcrypt.compare(input.password, report.passwordHash);
+        if (!match) throw new TRPCError({ code: "UNAUTHORIZED", message: "Incorrect password" });
       }
 
       // If PDF is stored in DB (no R2), serve via dedicated API route

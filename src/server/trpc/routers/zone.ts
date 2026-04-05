@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
 import { gpsZones } from "@/server/db/schema";
 import { assertProjectAccess } from "../helpers";
@@ -64,7 +65,8 @@ export const zoneRouter = createTRPCRouter({
         where: eq(gpsZones.id, input.id),
         columns: { projectId: true },
       });
-      if (zone) await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId);
+      if (!zone) throw new TRPCError({ code: "NOT_FOUND", message: "Zone not found" });
+      await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId);
 
       const { id, ...data } = input;
       const [updated] = await ctx.db
@@ -72,7 +74,7 @@ export const zoneRouter = createTRPCRouter({
         .set(data)
         .where(eq(gpsZones.id, id))
         .returning();
-      if (zone) writeAuditLog(ctx.db, { projectId: zone.projectId, userId: ctx.userId, action: "update", entityType: "gps_zone", entityId: id });
+      writeAuditLog(ctx.db, { projectId: zone.projectId, userId: ctx.userId, action: "update", entityType: "gps_zone", entityId: id });
       return updated;
     }),
 
@@ -83,10 +85,11 @@ export const zoneRouter = createTRPCRouter({
         where: eq(gpsZones.id, input.id),
         columns: { projectId: true },
       });
-      if (zone) await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId);
+      if (!zone) throw new TRPCError({ code: "NOT_FOUND", message: "Zone not found" });
+      await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId);
 
       await ctx.db.delete(gpsZones).where(eq(gpsZones.id, input.id));
-      if (zone) writeAuditLog(ctx.db, { projectId: zone.projectId, userId: ctx.userId, action: "delete", entityType: "gps_zone", entityId: input.id });
+      writeAuditLog(ctx.db, { projectId: zone.projectId, userId: ctx.userId, action: "delete", entityType: "gps_zone", entityId: input.id });
       return { success: true };
     }),
 });

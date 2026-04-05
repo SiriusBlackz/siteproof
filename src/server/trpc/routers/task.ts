@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { eq, asc, and, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
 import { tasks } from "@/server/db/schema";
 import { detectAndParse } from "@/server/services/programme-import";
@@ -133,7 +134,8 @@ export const taskRouter = createTRPCRouter({
         where: eq(tasks.id, input.id),
         columns: { projectId: true },
       });
-      if (existing) await assertProjectAccess(ctx.db, existing.projectId, ctx.orgId);
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Task not found" });
+      await assertProjectAccess(ctx.db, existing.projectId, ctx.orgId);
 
       const { id, ...data } = input;
       const cleaned: Record<string, unknown> = {};
@@ -145,7 +147,7 @@ export const taskRouter = createTRPCRouter({
         .set({ ...cleaned, updatedAt: new Date() })
         .where(eq(tasks.id, id))
         .returning();
-      if (existing) writeAuditLog(ctx.db, { projectId: existing.projectId, userId: ctx.userId, action: "update", entityType: "task", entityId: id });
+      writeAuditLog(ctx.db, { projectId: existing.projectId, userId: ctx.userId, action: "update", entityType: "task", entityId: id });
       return task;
     }),
 
@@ -156,7 +158,7 @@ export const taskRouter = createTRPCRouter({
         const task = await tx.query.tasks.findFirst({
           where: eq(tasks.id, input.id),
         });
-        if (!task) throw new Error("Task not found");
+        if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "Task not found" });
         await assertProjectAccess(ctx.db, task.projectId, ctx.orgId);
 
         await tx

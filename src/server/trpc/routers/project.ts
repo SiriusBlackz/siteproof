@@ -36,8 +36,8 @@ export const projectRouter = createTRPCRouter({
       const project = await ctx.db.query.projects.findFirst({
         where: eq(projects.id, input.id),
       });
-      if (!project) throw new Error("Project not found");
-      if (project.orgId !== ctx.orgId) throw new Error("Access denied");
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      if (project.orgId !== ctx.orgId) throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
 
       // In demo mode, treat pending_payment as active
       if (process.env.DEMO_MODE === "true" && project.status === "pending_payment") {

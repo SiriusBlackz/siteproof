@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { eq, and, desc, lte, gte, sql } from "drizzle-orm";
+import { eq, and, desc, lte, gte, sql, inArray } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../index";
 import { evidence, evidenceLinks, tasks } from "@/server/db/schema";
 import { getUploadUrl, getPublicUrl } from "@/server/services/storage";
@@ -181,7 +182,7 @@ export const evidenceRouter = createTRPCRouter({
         where: eq(evidence.id, input.evidenceId),
         columns: { projectId: true },
       });
-      if (!ev) throw new Error("Evidence not found");
+      if (!ev) throw new TRPCError({ code: "NOT_FOUND", message: "Evidence not found" });
       await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId);
 
       const [link] = await ctx.db
@@ -210,7 +211,7 @@ export const evidenceRouter = createTRPCRouter({
         where: eq(evidence.id, input.evidenceId),
         columns: { projectId: true },
       });
-      if (!ev) throw new Error("Evidence not found");
+      if (!ev) throw new TRPCError({ code: "NOT_FOUND", message: "Evidence not found" });
       await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId);
 
       await ctx.db
@@ -231,7 +232,7 @@ export const evidenceRouter = createTRPCRouter({
       const item = await ctx.db.query.evidence.findFirst({
         where: eq(evidence.id, input.evidenceId),
       });
-      if (!item) throw new Error("Evidence not found");
+      if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Evidence not found" });
       await assertProjectAccess(ctx.db, item.projectId, ctx.orgId);
 
       return suggestTasks(ctx.db, {
@@ -279,11 +280,11 @@ export const evidenceRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       // Verify all evidence belongs to the same project and user has access
       const items = await ctx.db.query.evidence.findMany({
-        where: sql`${evidence.id} IN ${input.evidenceIds}`,
+        where: inArray(evidence.id, input.evidenceIds),
         columns: { id: true, projectId: true },
       });
       if (items.length !== input.evidenceIds.length) {
-        throw new Error("One or more evidence items not found");
+        throw new TRPCError({ code: "NOT_FOUND", message: "One or more evidence items not found" });
       }
       const projectIds = new Set(items.map((e) => e.projectId));
       for (const pid of projectIds) {
