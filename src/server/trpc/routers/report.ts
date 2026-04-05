@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../index";
 import { reports } from "@/server/db/schema";
@@ -42,6 +42,20 @@ export const reportRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+
+      // Prevent duplicate generation — reject if a report is already generating
+      const inProgress = await ctx.db.query.reports.findFirst({
+        where: and(
+          eq(reports.projectId, input.projectId),
+          eq(reports.status, "generating")
+        ),
+      });
+      if (inProgress) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "A report is already being generated. Please wait for it to complete.",
+        });
+      }
 
       const existing = await ctx.db.query.reports.findMany({
         where: eq(reports.projectId, input.projectId),

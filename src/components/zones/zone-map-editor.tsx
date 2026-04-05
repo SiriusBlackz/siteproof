@@ -24,6 +24,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,6 +54,7 @@ export function ZoneMapEditor({ projectId }: ZoneMapEditorProps) {
   const [zoneName, setZoneName] = useState("");
   const [zoneColor, setZoneColor] = useState("#3B82F6");
   const [defaultTaskId, setDefaultTaskId] = useState<string>("");
+  const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
   const { data: zones = [] } = trpc.zone.list.useQuery({ projectId });
@@ -223,7 +234,7 @@ export function ZoneMapEditor({ projectId }: ZoneMapEditorProps) {
             <Button
               variant="ghost"
               size="icon-xs"
-              onClick={() => deleteMutation.mutate({ id: zone.id })}
+              onClick={() => setDeleteZoneId(zone.id)}
             >
               <Trash2 className="h-3 w-3" />
             </Button>
@@ -295,6 +306,32 @@ export function ZoneMapEditor({ projectId }: ZoneMapEditorProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={deleteZoneId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteZoneId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Zone</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the zone and its GPS associations. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteZoneId) deleteMutation.mutate({ id: deleteZoneId });
+                setDeleteZoneId(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -73,7 +73,14 @@ export function TaskLinker({
   }
 
   function handleUnlink(taskId: string) {
-    unlinkMutation.mutate({ evidenceId, taskId });
+    const taskName = linkedTasks.find((t) => t.id === taskId)?.name ?? "task";
+    toast(`Unlink "${taskName}"?`, {
+      action: {
+        label: "Confirm",
+        onClick: () => unlinkMutation.mutate({ evidenceId, taskId }),
+      },
+      duration: 5000,
+    });
   }
 
   function confidenceColor(c: number) {

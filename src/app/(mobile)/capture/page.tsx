@@ -50,6 +50,7 @@ function CaptureContent() {
   const [hasFlash, setHasFlash] = useState(false);
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [captureFlash, setCaptureFlash] = useState(false);
 
   const { isOnline } = usePWA();
@@ -82,8 +83,17 @@ function CaptureContent() {
       setHasFlash(!!caps?.torch);
 
       setCameraReady(true);
-    } catch {
+      setCameraError(null);
+    } catch (err: unknown) {
       setCameraReady(false);
+      const name = err instanceof DOMException ? err.name : "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        setCameraError("Camera access denied. Please allow camera access in your browser settings and reload.");
+      } else if (name === "NotFoundError") {
+        setCameraError("No camera found on this device.");
+      } else {
+        setCameraError("Could not start camera. Please try again.");
+      }
     }
   }, [facingMode]);
 
@@ -218,6 +228,7 @@ function CaptureContent() {
           playsInline
           muted
           className="h-full w-full object-cover"
+          aria-label="Live camera feed"
         />
         <canvas ref={canvasRef} className="hidden" />
 
@@ -231,6 +242,7 @@ function CaptureContent() {
           <button
             onClick={() => router.back()}
             className="rounded-full bg-black/40 p-2 active:bg-black/60"
+            aria-label="Back to project"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -252,6 +264,7 @@ function CaptureContent() {
             onClick={toggleFlash}
             disabled={!hasFlash}
             className="rounded-full bg-black/40 p-2 active:bg-black/60 disabled:opacity-30"
+            aria-label={flashEnabled ? "Turn off flash" : "Turn on flash"}
           >
             {flashEnabled ? (
               <Zap className="h-5 w-5 text-yellow-400" />
@@ -263,8 +276,23 @@ function CaptureContent() {
 
         {/* Camera not ready */}
         {!cameraReady && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-            <p className="text-zinc-400">Starting camera...</p>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6">
+            {cameraError ? (
+              <div className="text-center" role="alert">
+                <Camera className="h-10 w-10 text-zinc-500 mx-auto mb-3" />
+                <p className="text-zinc-300 font-medium">{cameraError}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4"
+                  onClick={() => { setCameraError(null); startCamera(); }}
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : (
+              <p className="text-zinc-400">Starting camera...</p>
+            )}
           </div>
         )}
       </div>
@@ -275,6 +303,7 @@ function CaptureContent() {
         <button
           onClick={photos.length > 0 ? goToReview : undefined}
           className="h-12 w-12 rounded-lg overflow-hidden border-2 border-zinc-700 bg-zinc-900"
+          aria-label={photos.length > 0 ? "Review captured photos" : "No photos captured"}
         >
           {photos.length > 0 ? (
             <img
@@ -292,6 +321,7 @@ function CaptureContent() {
           onClick={capturePhoto}
           disabled={!cameraReady}
           className="h-[72px] w-[72px] rounded-full border-[5px] border-white flex items-center justify-center active:scale-90 transition-transform disabled:opacity-50"
+          aria-label="Take photo"
         >
           <div className="h-[58px] w-[58px] rounded-full bg-white" />
         </button>
@@ -300,6 +330,7 @@ function CaptureContent() {
         <button
           onClick={switchCamera}
           className="rounded-full bg-zinc-800 p-3 active:bg-zinc-700"
+          aria-label="Switch camera"
         >
           <SwitchCamera className="h-5 w-5" />
         </button>

@@ -69,16 +69,28 @@ export async function suggestTasks(
 
     const projectTasks = await db.query.tasks.findMany({
       where: eq(tasks.projectId, evidence.projectId),
-      columns: { id: true, name: true, plannedStart: true, plannedEnd: true },
+      columns: {
+        id: true,
+        name: true,
+        plannedStart: true,
+        plannedEnd: true,
+        actualStart: true,
+        actualEnd: true,
+      },
     });
 
     for (const task of projectTasks) {
-      if (task.plannedStart && task.plannedEnd) {
-        if (capturedDate >= task.plannedStart && capturedDate <= task.plannedEnd) {
-          addScore(task.id, task.name, 30, "Active during capture date");
+      // Prefer actual dates over planned dates
+      const startDate = task.actualStart ?? task.plannedStart;
+      const endDate = task.actualEnd ?? task.plannedEnd;
+
+      if (startDate && endDate) {
+        if (capturedDate >= startDate && capturedDate <= endDate) {
+          const isActual = task.actualStart || task.actualEnd;
+          addScore(task.id, task.name, 30, isActual ? "Active during capture (actual)" : "Active during capture date");
         }
-      } else if (task.plannedStart && !task.plannedEnd) {
-        if (capturedDate >= task.plannedStart) {
+      } else if (startDate && !endDate) {
+        if (capturedDate >= startDate) {
           addScore(task.id, task.name, 15, "Started before capture date");
         }
       }
@@ -125,15 +137,19 @@ export async function suggestTasks(
     addScore(taskId, linkEntry.task.name, points, "Recently linked evidence");
   }
 
-  // Normalize and sort
+  // Normalize, filter by minimum threshold, and sort
+  const MIN_CONFIDENCE = 0.4;
   const suggestions: TaskSuggestion[] = [];
   for (const [taskId, data] of scores) {
-    suggestions.push({
-      taskId,
-      taskName: data.name,
-      confidence: Math.min(data.score / 100, 1.0),
-      reasons: data.reasons,
-    });
+    const confidence = Math.min(data.score / 100, 1.0);
+    if (confidence >= MIN_CONFIDENCE) {
+      suggestions.push({
+        taskId,
+        taskName: data.name,
+        confidence,
+        reasons: data.reasons,
+      });
+    }
   }
 
   suggestions.sort((a, b) => b.confidence - a.confidence);

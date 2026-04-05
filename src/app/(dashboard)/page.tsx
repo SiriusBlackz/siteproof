@@ -105,6 +105,39 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Onboarding — first-time user */}
+      {!summaryLoading && summary?.projects.total === 0 && (
+        <Card className="border-dashed border-2">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <FolderKanban className="h-12 w-12 text-muted-foreground/40 mb-4" />
+            <h2 className="text-lg font-semibold">Welcome to SiteProof</h2>
+            <p className="text-sm text-muted-foreground max-w-md mt-1 mb-6">
+              Get started by creating your first project. Upload site photos, link them to programme tasks, and generate professional progress reports.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href="/projects/new" className={cn(buttonVariants(), "gap-1")}>
+                <Plus className="h-4 w-4" />
+                Create First Project
+              </Link>
+            </div>
+            <div className="grid grid-cols-3 gap-6 mt-8 text-xs text-muted-foreground">
+              <div className="flex flex-col items-center gap-1">
+                <Camera className="h-5 w-5" />
+                <span>1. Capture</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <ListChecks className="h-5 w-5" />
+                <span>2. Link</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <TrendingUp className="h-5 w-5" />
+                <span>3. Report</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Recent activity */}
         <div className="lg:col-span-2">
