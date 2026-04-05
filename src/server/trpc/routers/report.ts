@@ -80,70 +80,12 @@ export const reportRouter = createTRPCRouter({
             generatedBy: ctx.userId,
           },
         });
-      } catch {
-        const {
-          gatherReportData,
-          renderReportHTML,
-          htmlToPdf,
-        } = await import("@/server/services/report-generator");
-
-        try {
-          const reportData = await gatherReportData(ctx.db, {
-            projectId: input.projectId,
-            periodStart: input.periodStart,
-            periodEnd: input.periodEnd,
-            password: input.password,
-            generatedBy: ctx.userId,
-          });
-
-          const html = await renderReportHTML(reportData);
-          const pdfBuffer = await htmlToPdf(html, input.password);
-
-          const storageKey = `projects/${input.projectId}/reports/report-${reportNumber}.pdf`;
-
-          const isR2 = process.env.R2_ACCESS_KEY_ID && process.env.R2_ACCESS_KEY_ID !== "PLACEHOLDER";
-
-          if (!isR2) {
-            // No R2 — store PDF base64 in DB for retrieval via /api/reports/[id]/pdf
-            await ctx.db
-              .update(reports)
-              .set({
-                status: "completed",
-                pdfStorageKey: storageKey,
-                reportData: {
-                  stats: reportData.summaryStats,
-                  meta: reportData.meta,
-                  pdfBase64: pdfBuffer.toString("base64"),
-                },
-              })
-              .where(eq(reports.id, report.id));
-          } else {
-            // R2 configured — write to storage
-            const { writeFile, mkdir } = await import("fs/promises");
-            const { join, dirname } = await import("path");
-            const filePath = join(process.cwd(), "public", "uploads", storageKey);
-            await mkdir(dirname(filePath), { recursive: true });
-            await writeFile(filePath, pdfBuffer);
-
-            await ctx.db
-              .update(reports)
-              .set({
-                status: "completed",
-                pdfStorageKey: storageKey,
-                reportData: {
-                  stats: reportData.summaryStats,
-                  meta: reportData.meta,
-                },
-              })
-              .where(eq(reports.id, report.id));
-          }
-        } catch (syncErr) {
-          console.error("[report.generate] Sync fallback failed:", syncErr);
-          await ctx.db
-            .update(reports)
-            .set({ status: "failed" })
-            .where(eq(reports.id, report.id));
-        }
+      } catch (err) {
+        console.error("[report.generate] Failed to queue report generation:", err);
+        await ctx.db
+          .update(reports)
+          .set({ status: "failed" })
+          .where(eq(reports.id, report.id));
       }
 
       writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "generate", entityType: "report", entityId: report.id, metadata: { reportNumber, periodStart: input.periodStart, periodEnd: input.periodEnd } });

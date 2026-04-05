@@ -71,9 +71,16 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
     orderBy: [asc(tasks.sortOrder)],
   });
 
-  // 4. All evidence for project (with links)
-  const allEvidence = await db.query.evidence.findMany({
-    where: eq(evidence.projectId, input.projectId),
+  // 4. Evidence for the reporting period (filtered at DB level)
+  const periodStart = new Date(input.periodStart + "T00:00:00Z");
+  const periodEnd = new Date(input.periodEnd + "T23:59:59.999Z");
+
+  const periodEvidence = await db.query.evidence.findMany({
+    where: and(
+      eq(evidence.projectId, input.projectId),
+      gte(evidence.capturedAt, periodStart),
+      lte(evidence.capturedAt, periodEnd)
+    ),
     orderBy: [desc(evidence.capturedAt)],
     with: {
       links: {
@@ -84,11 +91,19 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
     },
   });
 
-  // Filter evidence for this period
-  const periodEvidence = allEvidence.filter((ev) => {
-    if (!ev.capturedAt) return false;
-    const d = ev.capturedAt.toISOString().split("T")[0];
-    return d >= input.periodStart && d <= input.periodEnd;
+  // Also load all evidence for verification stats (lightweight — no links needed)
+  const allEvidence = await db.query.evidence.findMany({
+    where: eq(evidence.projectId, input.projectId),
+    columns: {
+      id: true,
+      type: true,
+      capturedAt: true,
+      uploadedAt: true,
+      latitude: true,
+      longitude: true,
+      exifData: true,
+      storageKey: true,
+    },
   });
 
   // 5. Build report meta
@@ -185,9 +200,9 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
   walk(null, 0);
 
   const timelineTasks: TimelineTask[] = flatWithDepth.map((t) => {
-    // Find evidence dates for this task
+    // Find evidence dates for this task (from period evidence which has links)
     const evidenceDates: string[] = [];
-    for (const ev of allEvidence) {
+    for (const ev of periodEvidence) {
       if (ev.capturedAt && ev.links.some((l) => l.task.id === t.id)) {
         evidenceDates.push(ev.capturedAt.toISOString().split("T")[0]);
       }

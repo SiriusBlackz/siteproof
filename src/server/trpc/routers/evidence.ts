@@ -7,6 +7,7 @@ import { getUploadUrl, getPublicUrl } from "@/server/services/storage";
 import { suggestTasks } from "@/server/services/ai-linker";
 import { assertProjectAccess } from "../helpers";
 import { writeAuditLog } from "@/server/services/audit";
+import { inngest } from "@/server/inngest/client";
 import crypto from "crypto";
 
 const ALLOWED_MIME_TYPES = [
@@ -83,6 +84,12 @@ export const evidenceRouter = createTRPCRouter({
         })
         .returning();
       writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "upload", entityType: "evidence", entityId: record.id, metadata: { filename: input.originalFilename } });
+
+      // Trigger background processing (thumbnail generation)
+      inngest
+        .send({ name: "evidence/uploaded", data: { evidenceId: record.id } })
+        .catch((err) => console.warn("[evidence.confirm] Inngest send failed:", err));
+
       return record;
     }),
 

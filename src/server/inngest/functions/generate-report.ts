@@ -11,8 +11,19 @@ import {
 export const generateReport = inngest.createFunction(
   {
     id: "generate-report",
-    retries: 1,
+    retries: 3,
     triggers: [{ event: "report/generate" }],
+    onFailure: async ({ event }) => {
+      // Mark report as failed after all retries exhausted
+      const reportId = event.data.event.data?.reportId as string | undefined;
+      if (reportId) {
+        console.error(`[generate-report] All retries exhausted for report ${reportId}`);
+        await db
+          .update(reports)
+          .set({ status: "failed" })
+          .where(eq(reports.id, reportId));
+      }
+    },
   },
   async ({ event, step }) => {
     const { reportId, projectId, periodStart, periodEnd, password, generatedBy } =
