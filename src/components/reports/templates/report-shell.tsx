@@ -99,6 +99,20 @@ const baseStyles = `
     margin: 16px 0;
   }
 
+  .evidence-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .ba-pair {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  img[data-evidence] {
+    background: #f1f5f9;
+  }
+
   .page-footer {
     position: absolute;
     bottom: 12mm;

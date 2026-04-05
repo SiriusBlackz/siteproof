@@ -1,12 +1,29 @@
 import { PageFooter, type ReportMeta } from "./report-shell";
 
+export interface SignatureData {
+  role: "contractor" | "project_manager" | "client";
+  name: string;
+  title?: string;
+  date?: string;
+}
+
+const ROLE_MAP: Record<string, string> = {
+  contractor: "Contractor",
+  project_manager: "Project Manager",
+  client: "Client / Employer's Agent",
+};
+
 export function SignOffPage({
   meta,
   startPage,
+  signatures = [],
 }: {
   meta: ReportMeta;
   startPage: number;
+  signatures?: SignatureData[];
 }) {
+  // Build a lookup of provided signatures by role
+  const sigByRole = new Map(signatures.map((s) => [s.role, s]));
   return (
     <div className="page">
       <h2>Sign-Off</h2>
@@ -20,14 +37,17 @@ export function SignOffPage({
         <SignatureBlock
           role="Contractor"
           description="I confirm that the progress described in this report is accurate and supported by the evidence provided."
+          signature={sigByRole.get("contractor")}
         />
         <SignatureBlock
           role="Project Manager"
           description="I have reviewed the evidence and progress claimed in this report and confirm it is consistent with site observations."
+          signature={sigByRole.get("project_manager")}
         />
         <SignatureBlock
           role="Client / Employer's Agent"
           description="I acknowledge receipt of this progress report and the evidence contained herein."
+          signature={sigByRole.get("client")}
         />
       </div>
 
@@ -86,27 +106,41 @@ export function SignOffPage({
 function SignatureBlock({
   role,
   description,
+  signature,
 }: {
   role: string;
   description: string;
+  signature?: SignatureData;
 }) {
+  const isSigned = !!signature;
+
   return (
     <div
       style={{
-        border: "1px solid #e2e8f0",
+        border: `1px solid ${isSigned ? "#86efac" : "#e2e8f0"}`,
         borderRadius: 8,
         padding: "16px 20px",
+        background: isSigned ? "#f0fdf4" : "transparent",
       }}
     >
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: "#0f172a",
-          marginBottom: 4,
-        }}
-      >
-        {role}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#0f172a",
+          }}
+        >
+          {role}
+        </div>
+        {isSigned && (
+          <span
+            className="badge badge-green"
+            style={{ fontSize: 8 }}
+          >
+            Digitally Signed
+          </span>
+        )}
       </div>
       <div style={{ fontSize: 10, color: "#64748b", marginBottom: 16 }}>
         {description}
@@ -119,10 +153,16 @@ function SignatureBlock({
           </div>
           <div
             style={{
-              borderBottom: "1px solid #cbd5e1",
+              borderBottom: `1px solid ${isSigned ? "#86efac" : "#cbd5e1"}`,
               height: 28,
+              fontSize: 11,
+              fontWeight: 500,
+              color: "#0f172a",
+              lineHeight: "28px",
             }}
-          />
+          >
+            {signature ? `${signature.name}${signature.title ? `, ${signature.title}` : ""}` : ""}
+          </div>
         </div>
         <div style={{ flex: 2 }}>
           <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 4 }}>
@@ -130,10 +170,16 @@ function SignatureBlock({
           </div>
           <div
             style={{
-              borderBottom: "1px solid #cbd5e1",
+              borderBottom: `1px solid ${isSigned ? "#86efac" : "#cbd5e1"}`,
               height: 28,
+              fontSize: 14,
+              fontStyle: "italic",
+              color: "#1e40af",
+              lineHeight: "28px",
             }}
-          />
+          >
+            {signature ? signature.name : ""}
+          </div>
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 9, color: "#94a3b8", marginBottom: 4 }}>
@@ -141,10 +187,15 @@ function SignatureBlock({
           </div>
           <div
             style={{
-              borderBottom: "1px solid #cbd5e1",
+              borderBottom: `1px solid ${isSigned ? "#86efac" : "#cbd5e1"}`,
               height: 28,
+              fontSize: 10,
+              color: "#334155",
+              lineHeight: "28px",
             }}
-          />
+          >
+            {signature?.date ?? ""}
+          </div>
         </div>
       </div>
     </div>

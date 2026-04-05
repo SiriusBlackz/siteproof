@@ -82,6 +82,7 @@ export function EvidenceGalleryPage({
                 {task.evidence.map((ev) => (
                   <div
                     key={ev.id}
+                    className="evidence-card"
                     style={{
                       border: "1px solid #e2e8f0",
                       borderRadius: 6,
@@ -91,11 +92,13 @@ export function EvidenceGalleryPage({
                     <img
                       src={ev.publicUrl}
                       alt={ev.originalFilename ?? "Evidence"}
+                      data-evidence="true"
                       style={{
                         width: "100%",
                         height: 160,
                         objectFit: "cover",
                         display: "block",
+                        background: "#f1f5f9",
                       }}
                     />
                     <div style={{ padding: "8px 10px", fontSize: 9 }}>

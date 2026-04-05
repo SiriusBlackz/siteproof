@@ -53,6 +53,7 @@ export function BeforeAfterPage({
           {page.items.map((pair, idx) => (
             <div
               key={`${pair.taskId}-${idx}`}
+              className="ba-pair"
               style={{
                 marginBottom: 28,
                 border: "1px solid #e2e8f0",
@@ -103,11 +104,13 @@ export function BeforeAfterPage({
                   <img
                     src={pair.before.publicUrl}
                     alt={pair.before.filename ?? "Before"}
+                    data-evidence="true"
                     style={{
                       width: "100%",
                       height: 200,
                       objectFit: "cover",
                       display: "block",
+                      background: "#f1f5f9",
                     }}
                   />
                 </div>
@@ -129,11 +132,13 @@ export function BeforeAfterPage({
                   <img
                     src={pair.after.publicUrl}
                     alt={pair.after.filename ?? "After"}
+                    data-evidence="true"
                     style={{
                       width: "100%",
                       height: 200,
                       objectFit: "cover",
                       display: "block",
+                      background: "#f1f5f9",
                     }}
                   />
                 </div>

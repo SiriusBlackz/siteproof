@@ -32,8 +32,16 @@ import {
   type VerificationStats,
 } from "@/components/reports/templates/verification";
 import { SignOffPage } from "@/components/reports/templates/sign-off";
+import { TableOfContents, type TocEntry } from "@/components/reports/templates/table-of-contents";
 
 type DB = typeof dbType;
+
+export interface ReportSignature {
+  role: "contractor" | "project_manager" | "client";
+  name: string;
+  title?: string;
+  date?: string;
+}
 
 export interface GenerateReportInput {
   projectId: string;
@@ -41,6 +49,7 @@ export interface GenerateReportInput {
   periodEnd: string;
   password?: string;
   generatedBy: string;
+  signatures?: ReportSignature[];
 }
 
 /**
@@ -237,7 +246,7 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
       }
       gt.evidence.push({
         id: ev.id,
-        publicUrl: getPublicUrl(ev.storageKey),
+        publicUrl: getPublicUrl(ev.thumbnailKey ?? ev.storageKey),
         originalFilename: ev.originalFilename,
         capturedAt: ev.capturedAt?.toISOString() ?? null,
         latitude: ev.latitude,
@@ -348,6 +357,7 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
     galleryTasks,
     beforeAfterPairs,
     verificationStats,
+    signatures: input.signatures ?? [],
   };
 }
 
@@ -357,20 +367,40 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
 export async function renderReportHTML(data: Awaited<ReturnType<typeof gatherReportData>>): Promise<string> {
   // Dynamic import to avoid Turbopack's react-dom/server static analysis block
   const { renderToStaticMarkup } = await import("react-dom/server");
-  const { meta, summaryStats, timelineTasks, galleryTasks, beforeAfterPairs, verificationStats } =
+  const { meta, summaryStats, timelineTasks, galleryTasks, beforeAfterPairs, verificationStats, signatures } =
     data;
 
-  // Calculate page numbers — skip empty sections
+  // Calculate page numbers — page 1 = cover, page 2 = TOC, then content
+  // Skip empty sections
   const hasGallery = galleryTasks.length > 0;
   const hasBeforeAfter = beforeAfterPairs.length > 0;
+
+  const summaryPage = 3;
+  const timelinePage = 4;
+  const galleryStartPage = 5;
   const galleryPageCount = hasGallery ? Math.ceil(galleryTasks.reduce((n, t) => n + t.evidence.length, 0) / 6) : 0;
-  const beforeAfterStart = 4 + galleryPageCount;
+  const beforeAfterStart = galleryStartPage + galleryPageCount;
   const beforeAfterPageCount = hasBeforeAfter ? Math.ceil(beforeAfterPairs.length / 2) : 0;
   const verificationStart = beforeAfterStart + beforeAfterPageCount;
   const signOffStart = verificationStart + 1;
 
+  // Build TOC entries
+  const tocEntries: TocEntry[] = [
+    { title: "Executive Summary", page: summaryPage },
+    { title: "Programme Timeline", page: timelinePage },
+  ];
+  if (hasGallery) {
+    tocEntries.push({ title: "Evidence Gallery", page: galleryStartPage });
+  }
+  if (hasBeforeAfter) {
+    tocEntries.push({ title: "Before & After Comparison", page: beforeAfterStart });
+  }
+  tocEntries.push({ title: "Verification & Data Integrity", page: verificationStart });
+  tocEntries.push({ title: "Sign-Off", page: signOffStart });
+
   const children = [
     createElement(CoverPage, { key: "cover", meta }),
+    createElement(TableOfContents, { key: "toc", meta, entries: tocEntries }),
     createElement(ExecutiveSummary, { key: "summary", meta, stats: summaryStats }),
     createElement(ProgrammeTimeline, {
       key: "timeline",
@@ -383,7 +413,7 @@ export async function renderReportHTML(data: Awaited<ReturnType<typeof gatherRep
       key: "gallery",
       meta,
       tasks: galleryTasks,
-      startPage: 4,
+      startPage: galleryStartPage,
     }),
     createElement(BeforeAfterPage, {
       key: "beforeafter",
@@ -401,6 +431,7 @@ export async function renderReportHTML(data: Awaited<ReturnType<typeof gatherRep
       key: "signoff",
       meta,
       startPage: signOffStart,
+      signatures: signatures ?? [],
     }),
   ];
 
