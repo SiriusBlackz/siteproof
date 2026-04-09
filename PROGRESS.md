@@ -106,7 +106,7 @@
 - PDFs: stored as base64 in `report_data` JSONB, served via `/api/reports/[id]/pdf`
 - Chromium: `@sparticuz/chromium-min` + `puppeteer-core` with remote binary download
 - tRPC route: `maxDuration = 60` for report generation
-- middleware.ts still works but deprecated in Next.js 16 (should rename to proxy.ts)
+- Renamed middleware.ts → proxy.ts (Next.js 16 convention, commit 87591ff)
 
 ---
 
@@ -115,8 +115,8 @@
 ### Production Readiness
 1. **R2 storage setup** — configure Cloudflare R2 for persistent evidence/PDF storage
 2. **Inngest configuration** — configure event key + signing key on Vercel
-3. **Rename middleware.ts → proxy.ts** — Next.js 16 convention
-4. **App branding** — logo, name, tagline (brand TBD)
+3. **App branding** — logo, name, tagline (brand TBD)
+4. **Lint cleanup** — 15 errors + 49 warnings (unused imports, unescaped entities, React Compiler hints); build passes but worth a dedicated pass
 
 ### Nice-to-Have
 5. Project member management (multi-user teams)
@@ -125,4 +125,3 @@
 8. Video playback in evidence detail
 9. Canvas-based handwriting signature capture
 10. PDF encryption (not just access control)
-11. Fix themeColor viewport warnings
