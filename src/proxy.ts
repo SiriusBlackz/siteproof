@@ -1,7 +1,7 @@
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
-export default function middleware(request: NextRequest) {
+export default clerkMiddleware((auth, request) => {
   const response = NextResponse.next();
 
   // Security headers
@@ -18,7 +18,7 @@ export default function middleware(request: NextRequest) {
   );
 
   return response;
-}
+});
 
 export const config = {
   matcher: [
