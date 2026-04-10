@@ -40,6 +40,11 @@ function CaptureContent() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const [facingMode, setFacingMode] = useState<"environment" | "user">(
     "environment"
@@ -140,7 +145,7 @@ function CaptureContent() {
     canvas.toBlob(
       (blob) => {
         if (!blob) return;
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
         const photo: CapturedPhoto = {
           id: crypto.randomUUID(),
           blob,
@@ -150,9 +155,10 @@ function CaptureContent() {
           longitude: null,
         };
 
-        // Get GPS
+        // Get GPS — guard against unmounted state updates
         navigator.geolocation?.getCurrentPosition(
           (pos) => {
+            if (!mountedRef.current) return;
             setPhotos((prev) =>
               prev.map((p) =>
                 p.id === photo.id
@@ -172,7 +178,7 @@ function CaptureContent() {
         setPhotos((prev) => [...prev, photo]);
       },
       "image/jpeg",
-      0.9
+      0.95
     );
   }
 
