@@ -8,10 +8,15 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function usePWA() {
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(() =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(display-mode: standalone)").matches
+  );
 
   useEffect(() => {
     // Register service worker
@@ -27,7 +32,6 @@ export function usePWA() {
     }
 
     // Track online status
-    setIsOnline(navigator.onLine);
     const onOnline = () => setIsOnline(true);
     const onOffline = () => setIsOnline(false);
     window.addEventListener("online", onOnline);
@@ -39,11 +43,6 @@ export function usePWA() {
       setInstallPrompt(e as BeforeInstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
-
-    // Check if already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstalled(true);
-    }
 
     return () => {
       window.removeEventListener("online", onOnline);

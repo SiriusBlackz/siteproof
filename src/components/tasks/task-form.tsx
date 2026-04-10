@@ -118,6 +118,7 @@ export function TaskFormDialog({
           <div className="space-y-2">
             <Label>Parent Task</Label>
             <Select
+              // eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form watch()
               value={watch("parentTaskId") ?? ""}
               onValueChange={(val) =>
                 setValue("parentTaskId", val === "__none__" ? "" : (val ?? ""))

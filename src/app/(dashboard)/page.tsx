@@ -4,7 +4,6 @@ import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import {
@@ -14,8 +13,6 @@ import {
   Camera,
   ImageIcon,
   AlertTriangle,
-  CheckCircle,
-  Clock,
   TrendingUp,
 } from "lucide-react";
 

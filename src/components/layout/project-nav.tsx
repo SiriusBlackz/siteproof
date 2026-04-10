@@ -9,7 +9,6 @@ import {
   ImageIcon,
   Map,
   FileText,
-  Calendar,
   Settings,
 } from "lucide-react";
 

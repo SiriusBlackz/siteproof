@@ -1,5 +1,5 @@
-import { eq, and, gte, lte, asc, desc } from "drizzle-orm";
-import { evidence, evidenceLinks, gpsZones, tasks } from "@/server/db/schema";
+import { eq, and, gte, lte, asc } from "drizzle-orm";
+import { evidence, gpsZones } from "@/server/db/schema";
 import { pointInPolygon } from "@/lib/geo";
 import type { db as dbType } from "@/server/db";
 import { getPublicUrl } from "./storage";

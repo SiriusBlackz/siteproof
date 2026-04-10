@@ -2,7 +2,6 @@
 
 import { useState, useRef, useCallback, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,7 +9,6 @@ import {
   SwitchCamera,
   Zap,
   ZapOff,
-  X,
   Image as ImageIcon,
   Send,
   ArrowLeft,
@@ -98,6 +96,7 @@ function CaptureContent() {
   }, [facingMode]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async camera init must set state on completion
     startCamera();
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -204,7 +203,7 @@ function CaptureContent() {
         <div>
           <p className="text-lg font-medium">No project selected</p>
           <p className="text-sm text-zinc-400 mt-2">
-            Open a project and tap "Capture" to start taking photos.
+            Open a project and tap &quot;Capture&quot; to start taking photos.
           </p>
           <Button
             variant="outline"
@@ -306,6 +305,7 @@ function CaptureContent() {
           aria-label={photos.length > 0 ? "Review captured photos" : "No photos captured"}
         >
           {photos.length > 0 ? (
+            // eslint-disable-next-line @next/next/no-img-element -- camera data URL
             <img
               src={photos[photos.length - 1].dataUrl}
               alt=""

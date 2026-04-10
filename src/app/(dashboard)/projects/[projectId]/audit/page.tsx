@@ -25,7 +25,6 @@ import {
   Link2,
   Unlink2,
   FileText,
-  MapPin,
   FileUp,
   ArchiveIcon,
 } from "lucide-react";

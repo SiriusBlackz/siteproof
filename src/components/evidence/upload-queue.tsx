@@ -3,7 +3,6 @@
 import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { Upload, X, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -252,6 +251,7 @@ export function UploadQueue({ projectId, onUploadComplete }: UploadQueueProps) {
               className="flex items-center gap-3 rounded-lg border p-2"
             >
               {item.previewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- blob preview URL
                 <img
                   src={item.previewUrl}
                   alt=""

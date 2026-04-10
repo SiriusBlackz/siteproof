@@ -89,6 +89,7 @@ export function EvidenceGalleryPage({
                       overflow: "hidden",
                     }}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Puppeteer static HTML */}
                     <img
                       src={ev.publicUrl}
                       alt={ev.originalFilename ?? "Evidence"}
@@ -126,7 +127,7 @@ export function EvidenceGalleryPage({
                         )}
                         {ev.note && (
                           <div style={{ fontStyle: "italic", marginTop: 2, wordBreak: "break-word", maxHeight: 36, overflow: "hidden" }}>
-                            "{ev.note.length > 200 ? ev.note.slice(0, 200) + "..." : ev.note}"
+                            &ldquo;{ev.note.length > 200 ? ev.note.slice(0, 200) + "..." : ev.note}&rdquo;
                           </div>
                         )}
                       </div>

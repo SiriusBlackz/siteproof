@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 import { HardHat, User } from "lucide-react";
 
 const DEMO_USERS = [
@@ -19,10 +20,10 @@ const DEMO_USERS = [
 export default function DemoPage() {
   const router = useRouter();
 
-  function selectUser(key: string) {
+  const selectUser = useCallback((key: string) => {
     document.cookie = `demo_user=${key}; path=/; max-age=${60 * 60 * 24 * 30}`;
     router.push("/");
-  }
+  }, [router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-4">

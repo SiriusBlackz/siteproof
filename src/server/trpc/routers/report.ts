@@ -38,6 +38,13 @@ export const reportRouter = createTRPCRouter({
         periodStart: z.string().min(1),
         periodEnd: z.string().min(1),
         password: z.string().optional(),
+        signatures: z.array(z.object({
+          role: z.enum(["contractor", "project_manager", "client"]),
+          name: z.string().min(1),
+          title: z.string().optional(),
+          date: z.string().optional(),
+          imageDataUrl: z.string().optional(),
+        })).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -92,6 +99,7 @@ export const reportRouter = createTRPCRouter({
             periodEnd: input.periodEnd,
             password: input.password,
             generatedBy: ctx.userId,
+            signatures: input.signatures,
           },
         });
       } catch (err) {

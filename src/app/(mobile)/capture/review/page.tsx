@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -57,7 +55,25 @@ function ReviewContent() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId") ?? "";
 
-  const [photos, setPhotos] = useState<ReviewPhoto[]>([]);
+  const [photos, setPhotos] = useState<ReviewPhoto[]>(() => {
+    if (typeof window === "undefined") return [];
+    const raw = sessionStorage.getItem("capture-queue");
+    if (!raw) return [];
+    const data = JSON.parse(raw) as {
+      id: string;
+      dataUrl: string;
+      timestamp: string;
+      latitude: number | null;
+      longitude: number | null;
+    }[];
+    return data.map((d) => ({
+      ...d,
+      note: "",
+      taskId: "",
+      status: "pending" as const,
+      progress: 0,
+    }));
+  });
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [uploading, setUploading] = useState(false);
 
@@ -72,30 +88,12 @@ function ReviewContent() {
   const confirmUpload = trpc.evidence.confirm.useMutation();
   const linkEvidence = trpc.evidence.link.useMutation();
 
-  // Load photos from sessionStorage
+  // Redirect if no photos
   useEffect(() => {
-    const raw = sessionStorage.getItem("capture-queue");
-    if (!raw) {
+    if (photos.length === 0) {
       router.replace(`/capture?projectId=${projectId}`);
-      return;
     }
-    const data = JSON.parse(raw) as {
-      id: string;
-      dataUrl: string;
-      timestamp: string;
-      latitude: number | null;
-      longitude: number | null;
-    }[];
-    setPhotos(
-      data.map((d) => ({
-        ...d,
-        note: "",
-        taskId: "",
-        status: "pending" as const,
-        progress: 0,
-      }))
-    );
-  }, [projectId, router]);
+  }, [photos.length, projectId, router]);
 
   const selected = photos[selectedIdx];
 
@@ -273,6 +271,7 @@ function ReviewContent() {
       {/* Selected photo preview */}
       {selected && (
         <div className="relative flex-shrink-0 bg-black" style={{ height: "40dvh" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- camera data URL */}
           <img
             src={selected.dataUrl}
             alt=""
@@ -306,6 +305,7 @@ function ReviewContent() {
                 : "border-transparent"
             }`}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element -- camera data URL */}
             <img
               src={photo.dataUrl}
               alt=""

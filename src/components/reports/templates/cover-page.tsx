@@ -8,6 +8,7 @@ export function CoverPage({ meta }: { meta: ReportMeta }) {
       {/* Logo area */}
       <div style={{ textAlign: "center", marginBottom: 48 }}>
         {meta.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Puppeteer static HTML
           <img
             src={meta.logoUrl}
             alt={meta.organisationName}

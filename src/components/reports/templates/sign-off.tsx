@@ -5,13 +5,8 @@ export interface SignatureData {
   name: string;
   title?: string;
   date?: string;
+  imageDataUrl?: string;
 }
-
-const ROLE_MAP: Record<string, string> = {
-  contractor: "Contractor",
-  project_manager: "Project Manager",
-  client: "Client / Employer's Agent",
-};
 
 export function SignOffPage({
   meta,
@@ -178,7 +173,16 @@ function SignatureBlock({
               lineHeight: "28px",
             }}
           >
-            {signature ? signature.name : ""}
+            {signature?.imageDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- Puppeteer static HTML
+              <img
+                src={signature.imageDataUrl}
+                alt="Signature"
+                style={{ height: 26, maxWidth: "100%", objectFit: "contain" }}
+              />
+            ) : (
+              signature ? signature.name : ""
+            )}
           </div>
         </div>
         <div style={{ flex: 1 }}>

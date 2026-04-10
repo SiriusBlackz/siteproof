@@ -101,6 +101,7 @@ export function BeforeAfterPage({
                   >
                     Before — {formatDate(pair.before.capturedAt)}
                   </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- Puppeteer static HTML */}
                   <img
                     src={pair.before.publicUrl}
                     alt={pair.before.filename ?? "Before"}
@@ -129,6 +130,7 @@ export function BeforeAfterPage({
                   >
                     After — {formatDate(pair.after.capturedAt)}
                   </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- Puppeteer static HTML */}
                   <img
                     src={pair.after.publicUrl}
                     alt={pair.after.filename ?? "After"}

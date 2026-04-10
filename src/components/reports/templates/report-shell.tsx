@@ -133,6 +133,7 @@ const baseStyles = `
 `;
 
 export function ReportShell({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- passed for type consistency, used by callers
   meta,
   children,
 }: {
@@ -141,6 +142,7 @@ export function ReportShell({
 }) {
   return (
     <html lang="en">
+      {/* eslint-disable-next-line @next/next/no-head-element -- Puppeteer static HTML, not a Next.js page */}
       <head>
         <meta charSet="utf-8" />
         <style dangerouslySetInnerHTML={{ __html: baseStyles }} />

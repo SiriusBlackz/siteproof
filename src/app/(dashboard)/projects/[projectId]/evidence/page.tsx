@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,20 @@ export default function EvidencePage() {
   const [taskFilter, setTaskFilter] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [uploaderFilter, setUploaderFilter] = useState<string>("");
   const [selectedItem, setSelectedItem] = useState<EvidenceItem | null>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Debounce search input
+  useEffect(() => {
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(searchTimerRef.current);
+  }, [searchQuery]);
 
   // Bulk selection state
   const [selectMode, setSelectMode] = useState(false);
@@ -64,6 +77,7 @@ export default function EvidencePage() {
   const utils = trpc.useUtils();
 
   const { data: tasks = [] } = trpc.task.list.useQuery({ projectId });
+  const { data: uploaders = [] } = trpc.evidence.uploaders.useQuery({ projectId });
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     trpc.evidence.list.useInfiniteQuery(
@@ -73,6 +87,9 @@ export default function EvidencePage() {
         taskId: taskFilter || undefined,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
+        type: (typeFilter as "photo" | "video") || undefined,
+        search: debouncedSearch || undefined,
+        uploadedBy: uploaderFilter || undefined,
       },
       {
         getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
@@ -132,9 +149,13 @@ export default function EvidencePage() {
     setTaskFilter("");
     setDateFrom("");
     setDateTo("");
+    setTypeFilter("");
+    setSearchQuery("");
+    setDebouncedSearch("");
+    setUploaderFilter("");
   }
 
-  const hasActiveFilters = taskFilter || dateFrom || dateTo;
+  const hasActiveFilters = taskFilter || dateFrom || dateTo || typeFilter || debouncedSearch || uploaderFilter;
 
   if (isLoading) {
     return (
@@ -227,49 +248,96 @@ export default function EvidencePage() {
       )}
 
       {filtersOpen && !selectMode && (
-        <div className="flex flex-wrap items-end gap-4 rounded-lg border p-4">
+        <div className="space-y-3 rounded-lg border p-4">
           <div className="space-y-1">
-            <Label className="text-xs">Task</Label>
-            <Select
-              value={taskFilter}
-              onValueChange={(val) => setTaskFilter(val === "__all__" ? "" : (val ?? ""))}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All tasks" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All tasks</SelectItem>
-                {tasks.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {"—".repeat(t.depth)} {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">From</Label>
+            <Label className="text-xs">Search</Label>
             <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-40"
+              type="text"
+              placeholder="Search notes &amp; filenames..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full"
             />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">To</Label>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-40"
-            />
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs">Task</Label>
+              <Select
+                value={taskFilter}
+                onValueChange={(val) => setTaskFilter(val === "__all__" ? "" : (val ?? ""))}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All tasks" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All tasks</SelectItem>
+                  {tasks.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {"—".repeat(t.depth)} {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Type</Label>
+              <Select
+                value={typeFilter}
+                onValueChange={(val) => setTypeFilter(val === "__all__" ? "" : (val ?? ""))}
+              >
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All types</SelectItem>
+                  <SelectItem value="photo">Photos</SelectItem>
+                  <SelectItem value="video">Videos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Uploader</Label>
+              <Select
+                value={uploaderFilter}
+                onValueChange={(val) => setUploaderFilter(val === "__all__" ? "" : (val ?? ""))}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All uploaders" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All uploaders</SelectItem>
+                  {uploaders.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">From</Label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">To</Label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                Clear
+              </Button>
+            )}
           </div>
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Clear
-            </Button>
-          )}
         </div>
       )}
 
@@ -318,7 +386,16 @@ export default function EvidencePage() {
           </DialogHeader>
           {selectedItem && (
             <div className="space-y-4">
-              {selectedItem.type !== "video" && (
+              {selectedItem.type === "video" ? (
+                <video
+                  src={selectedItem.publicUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="w-full rounded-lg"
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- user-uploaded R2 content
                 <img
                   src={selectedItem.publicUrl}
                   alt={selectedItem.originalFilename ?? ""}

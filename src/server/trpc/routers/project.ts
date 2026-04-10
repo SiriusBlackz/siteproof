@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
-import { projects, organisations } from "@/server/db/schema";
+import { projects, organisations, projectMembers, users } from "@/server/db/schema";
 import { assertProjectAccess } from "../helpers";
 import { writeAuditLog } from "@/server/services/audit";
 import {
@@ -187,5 +187,123 @@ export const projectRouter = createTRPCRouter({
       );
 
       return { portalUrl };
+    }),
+
+  // ─── Member Management ──────────────────────────────────────────────────────
+
+  orgUsers: protectedProcedure.query(async ({ ctx }) => {
+    const orgUsers = await ctx.db.query.users.findMany({
+      where: eq(users.orgId, ctx.orgId),
+      columns: { id: true, name: true, email: true, avatarUrl: true, role: true },
+    });
+    return orgUsers;
+  }),
+
+  memberList: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      const members = await ctx.db.query.projectMembers.findMany({
+        where: eq(projectMembers.projectId, input.projectId),
+        with: {
+          user: {
+            columns: { id: true, name: true, email: true, avatarUrl: true, role: true },
+          },
+        },
+      });
+      return members;
+    }),
+
+  memberAdd: adminProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        userId: z.string().uuid(),
+        role: z.string().default("member"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+
+      // Verify target user belongs to same org
+      const targetUser = await ctx.db.query.users.findFirst({
+        where: eq(users.id, input.userId),
+        columns: { id: true, orgId: true, name: true },
+      });
+      if (!targetUser || targetUser.orgId !== ctx.orgId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "User not found in your organisation" });
+      }
+
+      // Check if already a member
+      const existing = await ctx.db.query.projectMembers.findFirst({
+        where: and(
+          eq(projectMembers.projectId, input.projectId),
+          eq(projectMembers.userId, input.userId)
+        ),
+      });
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "User is already a member of this project" });
+      }
+
+      const [member] = await ctx.db
+        .insert(projectMembers)
+        .values({
+          projectId: input.projectId,
+          userId: input.userId,
+          role: input.role,
+        })
+        .returning();
+
+      writeAuditLog(ctx.db, {
+        projectId: input.projectId,
+        userId: ctx.userId,
+        action: "add_member",
+        entityType: "project_member",
+        entityId: member.id,
+        metadata: { addedUserId: input.userId, addedUserName: targetUser.name, role: input.role },
+      });
+
+      return member;
+    }),
+
+  memberRemove: adminProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        userId: z.string().uuid(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+
+      const existing = await ctx.db.query.projectMembers.findFirst({
+        where: and(
+          eq(projectMembers.projectId, input.projectId),
+          eq(projectMembers.userId, input.userId)
+        ),
+      });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
+      }
+
+      await ctx.db
+        .delete(projectMembers)
+        .where(
+          and(
+            eq(projectMembers.projectId, input.projectId),
+            eq(projectMembers.userId, input.userId)
+          )
+        );
+
+      writeAuditLog(ctx.db, {
+        projectId: input.projectId,
+        userId: ctx.userId,
+        action: "remove_member",
+        entityType: "project_member",
+        entityId: existing.id,
+        metadata: { removedUserId: input.userId },
+      });
+
+      return { success: true };
     }),
 });

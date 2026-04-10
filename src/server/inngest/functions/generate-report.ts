@@ -26,7 +26,7 @@ export const generateReport = inngest.createFunction(
     },
   },
   async ({ event, step }) => {
-    const { reportId, projectId, periodStart, periodEnd, password, generatedBy } =
+    const { reportId, projectId, periodStart, periodEnd, password, generatedBy, signatures } =
       event.data as {
         reportId: string;
         projectId: string;
@@ -34,6 +34,7 @@ export const generateReport = inngest.createFunction(
         periodEnd: string;
         password?: string;
         generatedBy: string;
+        signatures?: { role: "contractor" | "project_manager" | "client"; name: string; title?: string; date?: string; imageDataUrl?: string }[];
       };
 
     // Step 1: Gather report data
@@ -44,6 +45,7 @@ export const generateReport = inngest.createFunction(
         periodEnd,
         password,
         generatedBy,
+        signatures,
       });
     });
 

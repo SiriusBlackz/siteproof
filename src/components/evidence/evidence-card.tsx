@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Calendar, Film, Check } from "lucide-react";
+import { MapPin, Calendar, Film, Play, Check } from "lucide-react";
 
 interface LinkedTask {
   taskId: string;
@@ -50,10 +50,26 @@ export function EvidenceCard({ item, onClick, selected, onToggleSelect }: Eviden
     >
       <div className="relative aspect-square bg-muted">
         {isVideo ? (
-          <div className="flex h-full items-center justify-center">
-            <Film className="h-8 w-8 text-muted-foreground" />
+          <div className="relative flex h-full items-center justify-center bg-zinc-900">
+            <video
+              src={item.publicUrl}
+              preload="metadata"
+              muted
+              playsInline
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90">
+                <Play className="h-5 w-5 text-zinc-900 ml-0.5" />
+              </div>
+            </div>
+            <Badge variant="secondary" className="absolute bottom-1.5 left-1.5 gap-1 text-[10px] bg-black/60 text-white border-0">
+              <Film className="h-3 w-3" />
+              Video
+            </Badge>
           </div>
         ) : (
+          /* eslint-disable-next-line @next/next/no-img-element -- user-uploaded R2 content */
           <img
             src={item.publicUrl}
             alt={item.originalFilename ?? "Evidence photo"}

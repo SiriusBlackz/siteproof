@@ -91,7 +91,7 @@ export function ReportList({ reports }: ReportListProps) {
     return (
       <div className="py-12 text-center text-muted-foreground">
         <FileText className="mx-auto mb-3 h-8 w-8" />
-        No reports generated yet. Click "Generate Report" to create your first one.
+        No reports generated yet. Click &quot;Generate Report&quot; to create your first one.
       </div>
     );
   }

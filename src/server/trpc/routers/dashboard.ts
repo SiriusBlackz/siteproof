@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, gte, inArray } from "drizzle-orm";
+import { eq, desc, sql, inArray } from "drizzle-orm";
 import { createTRPCRouter, protectedProcedure } from "../index";
 import {
   projects,

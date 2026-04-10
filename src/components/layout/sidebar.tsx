@@ -9,6 +9,7 @@ import {
   FolderKanban,
   HardHat,
 } from "lucide-react";
+import { OfflineQueueIndicator } from "./offline-queue-indicator";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -45,6 +46,9 @@ export function Sidebar() {
           );
         })}
       </nav>
+      <div className="border-t p-3">
+        <OfflineQueueIndicator />
+      </div>
     </aside>
   );
 }

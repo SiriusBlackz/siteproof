@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -130,10 +130,10 @@ export function GanttChart({ tasks, evidenceMarkers }: GanttChartProps) {
   const dayWidth = DAY_WIDTHS[zoom];
   const chartWidth = totalDays * dayWidth;
 
-  function dateToPx(date: string): number {
+  const dateToPx = useCallback((date: string): number => {
     const days = daysBetween(parseDate(timelineStart), parseDate(date));
     return days * dayWidth;
-  }
+  }, [timelineStart, dayWidth]);
 
   // Generate header markers
   const headerMarkers = useMemo(() => {
@@ -178,7 +178,7 @@ export function GanttChart({ tasks, evidenceMarkers }: GanttChartProps) {
       }
     }
     return markers;
-  }, [timelineStart, timelineEnd, zoom, dayWidth]);
+  }, [timelineStart, timelineEnd, zoom, dateToPx]);
 
   // Today line
   const todayIso = new Date().toISOString().split("T")[0];

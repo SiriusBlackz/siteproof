@@ -4,7 +4,6 @@ import {
   tasks,
   gpsZones,
   evidenceLinks,
-  type evidence as evidenceTable,
 } from "@/server/db/schema";
 import type { db as dbType } from "@/server/db";
 

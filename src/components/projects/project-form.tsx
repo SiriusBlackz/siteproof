@@ -90,6 +90,7 @@ export function ProjectForm({
             <div className="space-y-2">
               <Label htmlFor="contractType">Contract Type</Label>
               <Select
+                // eslint-disable-next-line react-hooks/incompatible-library -- React Hook Form watch()
                 value={watch("contractType") ?? ""}
                 onValueChange={(val) => setValue("contractType", val ?? undefined)}
               >

@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { eq, and, desc, lte, gte, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, lte, gte, sql, inArray, ilike, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../index";
-import { evidence, evidenceLinks, tasks } from "@/server/db/schema";
+import { evidence, evidenceLinks, users } from "@/server/db/schema";
 import { getUploadUrl, getPublicUrl } from "@/server/services/storage";
 import { suggestTasks } from "@/server/services/ai-linker";
 import { assertProjectAccess } from "../helpers";
@@ -102,6 +102,9 @@ export const evidenceRouter = createTRPCRouter({
         taskId: z.string().uuid().optional(),
         dateFrom: z.string().optional(),
         dateTo: z.string().optional(),
+        type: z.enum(["photo", "video"]).optional(),
+        search: z.string().max(200).optional(),
+        uploadedBy: z.string().uuid().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -113,6 +116,21 @@ export const evidenceRouter = createTRPCRouter({
       }
       if (input.dateTo) {
         conditions.push(lte(evidence.capturedAt, new Date(input.dateTo)));
+      }
+      if (input.type) {
+        conditions.push(eq(evidence.type, input.type));
+      }
+      if (input.uploadedBy) {
+        conditions.push(eq(evidence.uploadedBy, input.uploadedBy));
+      }
+      if (input.search) {
+        const pattern = `%${input.search}%`;
+        conditions.push(
+          or(
+            ilike(evidence.note, pattern),
+            ilike(evidence.originalFilename, pattern)
+          )!
+        );
       }
 
       let evidenceIdsForTask: string[] | null = null;
@@ -320,5 +338,20 @@ export const evidenceRouter = createTRPCRouter({
       });
 
       return { linked: input.evidenceIds.length };
+    }),
+
+  uploaders: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      const rows = await ctx.db
+        .selectDistinct({
+          id: users.id,
+          name: users.name,
+        })
+        .from(evidence)
+        .innerJoin(users, eq(evidence.uploadedBy, users.id))
+        .where(eq(evidence.projectId, input.projectId));
+      return rows;
     }),
 });

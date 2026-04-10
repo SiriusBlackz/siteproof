@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   LayoutDashboard,
@@ -12,6 +12,7 @@ import {
   Menu,
 } from "lucide-react";
 import { useState } from "react";
+import { OfflineQueueIndicator } from "./offline-queue-indicator";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -62,6 +63,9 @@ export function MobileNav() {
       <div className="flex items-center gap-2 ml-2">
         <HardHat className="h-5 w-5 text-primary" />
         <span className="font-semibold">SiteProof</span>
+      </div>
+      <div className="ml-auto">
+        <OfflineQueueIndicator />
       </div>
     </div>
   );

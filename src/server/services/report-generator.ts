@@ -1,11 +1,9 @@
 import { createElement } from "react";
-import { eq, and, gte, lte, asc, desc, count, sql } from "drizzle-orm";
+import { eq, and, gte, lte, asc, desc } from "drizzle-orm";
 import {
   projects,
-  organisations,
   tasks,
   evidence,
-  evidenceLinks,
   gpsZones,
   auditLog,
   reports,
@@ -41,6 +39,7 @@ export interface ReportSignature {
   name: string;
   title?: string;
   date?: string;
+  imageDataUrl?: string;
 }
 
 export interface GenerateReportInput {
@@ -436,6 +435,7 @@ export async function renderReportHTML(data: Awaited<ReturnType<typeof gatherRep
   ];
 
   const html = renderToStaticMarkup(
+    // eslint-disable-next-line react/no-children-prop -- server-side renderToStaticMarkup
     createElement(ReportShell, { meta, children })
   );
 
@@ -449,7 +449,8 @@ export async function renderReportHTML(data: Awaited<ReturnType<typeof gatherRep
  */
 export async function htmlToPdf(
   html: string,
-  _password?: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- will be used for PDF encryption
+  password?: string
 ): Promise<Buffer> {
   let browser;
 

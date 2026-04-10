@@ -1,7 +1,7 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-export default clerkMiddleware((auth, request) => {
+export default clerkMiddleware(() => {
   const response = NextResponse.next();
 
   // Security headers

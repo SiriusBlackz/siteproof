@@ -18,10 +18,11 @@ export async function createTRPCContext(opts: { headers: Headers }) {
         email: demoUser.email,
         name: demoUser.name,
       });
-    } catch (e: any) {
-      const errMsg = e?.message ?? "unknown error";
-      const cause = e?.cause?.message ?? e?.code ?? "";
-      throw new Error(`Demo ensureUser failed: ${errMsg} | cause: ${cause} | stack: ${e?.stack?.split("\n").slice(0, 3).join(" ")}`);
+    } catch (e: unknown) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      const cause = (e as Record<string, unknown>)?.cause;
+      const causeMsg = cause instanceof Error ? cause.message : String((e as Record<string, unknown>)?.code ?? "");
+      throw new Error(`Demo ensureUser failed: ${err.message} | cause: ${causeMsg} | stack: ${err.stack?.split("\n").slice(0, 3).join(" ")}`);
     }
   } else {
     const { auth, currentUser } = await import("@clerk/nextjs/server");
