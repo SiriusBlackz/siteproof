@@ -15,7 +15,7 @@ export const zoneRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       return ctx.db.query.gpsZones.findMany({
         where: eq(gpsZones.projectId, input.projectId),
         with: {
@@ -35,7 +35,7 @@ export const zoneRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const [zone] = await ctx.db
         .insert(gpsZones)
         .values({
@@ -66,7 +66,7 @@ export const zoneRouter = createTRPCRouter({
         columns: { projectId: true },
       });
       if (!zone) throw new TRPCError({ code: "NOT_FOUND", message: "Zone not found" });
-      await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId, ctx.userId);
 
       const { id, ...data } = input;
       const [updated] = await ctx.db
@@ -86,7 +86,7 @@ export const zoneRouter = createTRPCRouter({
         columns: { projectId: true },
       });
       if (!zone) throw new TRPCError({ code: "NOT_FOUND", message: "Zone not found" });
-      await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId, ctx.userId);
 
       await ctx.db.delete(gpsZones).where(eq(gpsZones.id, input.id));
       writeAuditLog(ctx.db, { projectId: zone.projectId, userId: ctx.userId, action: "delete", entityType: "gps_zone", entityId: input.id });

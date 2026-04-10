@@ -18,7 +18,7 @@ export const auditRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const conditions = [eq(auditLog.projectId, input.projectId)];
 
       if (input.action) {
@@ -88,7 +88,7 @@ export const auditRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const conditions = [eq(auditLog.projectId, input.projectId)];
       if (input.action) conditions.push(eq(auditLog.action, input.action));
       if (input.userId) conditions.push(eq(auditLog.userId, input.userId));

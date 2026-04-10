@@ -13,7 +13,7 @@ export const reportRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       return ctx.db.query.reports.findMany({
         where: eq(reports.projectId, input.projectId),
         orderBy: [desc(reports.reportNumber)],
@@ -27,7 +27,7 @@ export const reportRouter = createTRPCRouter({
         where: eq(reports.id, input.id),
       });
       if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Report not found" });
-      await assertProjectAccess(ctx.db, report.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, report.projectId, ctx.orgId, ctx.userId);
       return report;
     }),
 
@@ -48,7 +48,7 @@ export const reportRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
 
       // Prevent duplicate generation — reject if a report is already generating
       const inProgress = await ctx.db.query.reports.findFirst({
@@ -126,7 +126,7 @@ export const reportRouter = createTRPCRouter({
         where: eq(reports.id, input.id),
       });
       if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Report not found" });
-      await assertProjectAccess(ctx.db, report.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, report.projectId, ctx.orgId, ctx.userId);
 
       if (report.status !== "completed" || !report.pdfStorageKey) {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Report is not ready for download" });

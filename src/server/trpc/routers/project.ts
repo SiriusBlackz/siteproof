@@ -126,7 +126,7 @@ export const projectRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.id, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.id, ctx.orgId, ctx.userId);
       const { id, ...data } = input;
       const cleaned: Record<string, unknown> = {};
       for (const [key, val] of Object.entries(data)) {
@@ -144,7 +144,7 @@ export const projectRouter = createTRPCRouter({
   archive: adminProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.id, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.id, ctx.orgId, ctx.userId);
 
       // Cancel Stripe subscription if one exists
       const existing = await ctx.db.query.projects.findFirst({
@@ -202,7 +202,7 @@ export const projectRouter = createTRPCRouter({
   memberList: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const members = await ctx.db.query.projectMembers.findMany({
         where: eq(projectMembers.projectId, input.projectId),
         with: {
@@ -223,7 +223,7 @@ export const projectRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
 
       // Verify target user belongs to same org
       const targetUser = await ctx.db.query.users.findFirst({
@@ -274,7 +274,7 @@ export const projectRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
 
       const existing = await ctx.db.query.projectMembers.findFirst({
         where: and(

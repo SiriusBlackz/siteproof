@@ -53,7 +53,7 @@ export const taskRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const allTasks = await ctx.db.query.tasks.findMany({
         where: eq(tasks.projectId, input.projectId),
         orderBy: [asc(tasks.sortOrder)],
@@ -77,7 +77,7 @@ export const taskRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const parentId = input.parentTaskId ?? null;
 
       const [maxResult] = await ctx.db
@@ -135,7 +135,7 @@ export const taskRouter = createTRPCRouter({
         columns: { projectId: true },
       });
       if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Task not found" });
-      await assertProjectAccess(ctx.db, existing.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, existing.projectId, ctx.orgId, ctx.userId);
 
       const { id, ...data } = input;
       const cleaned: Record<string, unknown> = {};
@@ -159,7 +159,7 @@ export const taskRouter = createTRPCRouter({
           where: eq(tasks.id, input.id),
         });
         if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "Task not found" });
-        await assertProjectAccess(ctx.db, task.projectId, ctx.orgId);
+        await assertProjectAccess(ctx.db, task.projectId, ctx.orgId, ctx.userId);
 
         await tx
           .update(tasks)
@@ -186,7 +186,7 @@ export const taskRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       return ctx.db.transaction(async (tx) => {
         for (const item of input.items) {
           await tx
@@ -217,7 +217,7 @@ export const taskRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const { tasks: parsedTasks, format } = detectAndParse(input.xml);
 
       return ctx.db.transaction(async (tx) => {

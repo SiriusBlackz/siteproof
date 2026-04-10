@@ -38,7 +38,7 @@ export const evidenceRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const evidenceId = crypto.randomUUID();
       const storageKey = `projects/${input.projectId}/evidence/${evidenceId}/${input.filename}`;
       const result = await getUploadUrl(storageKey, input.contentType);
@@ -62,7 +62,7 @@ export const evidenceRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const type = input.mimeType.startsWith("video/") ? "video" : "photo";
 
       const [record] = await ctx.db
@@ -108,7 +108,7 @@ export const evidenceRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const conditions = [eq(evidence.projectId, input.projectId)];
 
       if (input.dateFrom) {
@@ -208,7 +208,7 @@ export const evidenceRouter = createTRPCRouter({
         columns: { projectId: true },
       });
       if (!ev) throw new TRPCError({ code: "NOT_FOUND", message: "Evidence not found" });
-      await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId, ctx.userId);
 
       const [link] = await ctx.db
         .insert(evidenceLinks)
@@ -237,7 +237,7 @@ export const evidenceRouter = createTRPCRouter({
         columns: { projectId: true },
       });
       if (!ev) throw new TRPCError({ code: "NOT_FOUND", message: "Evidence not found" });
-      await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId, ctx.userId);
 
       await ctx.db
         .delete(evidenceLinks)
@@ -258,7 +258,7 @@ export const evidenceRouter = createTRPCRouter({
         where: eq(evidence.id, input.evidenceId),
       });
       if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Evidence not found" });
-      await assertProjectAccess(ctx.db, item.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, item.projectId, ctx.orgId, ctx.userId);
 
       return suggestTasks(ctx.db, {
         latitude: item.latitude,
@@ -272,7 +272,7 @@ export const evidenceRouter = createTRPCRouter({
   markers: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const rows = await ctx.db
         .select({
           taskId: evidenceLinks.taskId,
@@ -313,7 +313,7 @@ export const evidenceRouter = createTRPCRouter({
       }
       const projectIds = new Set(items.map((e) => e.projectId));
       for (const pid of projectIds) {
-        await assertProjectAccess(ctx.db, pid, ctx.orgId);
+        await assertProjectAccess(ctx.db, pid, ctx.orgId, ctx.userId);
       }
 
       // Insert links, skip duplicates
@@ -343,7 +343,7 @@ export const evidenceRouter = createTRPCRouter({
   uploaders: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId);
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const rows = await ctx.db
         .selectDistinct({
           id: users.id,

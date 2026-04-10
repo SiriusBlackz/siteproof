@@ -10,7 +10,14 @@ export async function createTRPCContext(opts: { headers: Headers }) {
     // Demo mode: read identity from cookie, bypass Clerk entirely
     const cookieHeader = opts.headers.get("cookie") ?? "";
     const match = cookieHeader.match(/demo_user=([^;]+)/);
-    const demoUser = getDemoUser(match?.[1] ?? null);
+    const cookieValue = match?.[1] ?? null;
+
+    // Validate cookie value against known demo users to prevent clerkId injection
+    const { getDemoUserKeys } = await import("@/lib/demo");
+    const validKeys = getDemoUserKeys();
+    const safeValue = cookieValue && validKeys.includes(cookieValue) ? cookieValue : null;
+
+    const demoUser = getDemoUser(safeValue);
     clerkId = demoUser.clerkId;
 
     try {
