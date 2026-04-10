@@ -23,7 +23,10 @@ const projectFormSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   reportingFrequency: z.string().optional(),
-});
+}).refine(
+  (data) => !data.startDate || !data.endDate || data.endDate >= data.startDate,
+  { message: "End date must be after start date", path: ["endDate"] }
+);
 
 export type ProjectFormValues = z.infer<typeof projectFormSchema>;
 
@@ -134,6 +137,9 @@ export function ProjectForm({
             <div className="space-y-2">
               <Label htmlFor="endDate">End Date</Label>
               <Input id="endDate" type="date" {...register("endDate")} />
+              {errors.endDate && (
+                <p className="text-sm text-destructive">{errors.endDate.message}</p>
+              )}
             </div>
           </div>
 

@@ -53,12 +53,15 @@ export async function getUploadUrl(
 }
 
 export function getPublicUrl(storageKey: string): string {
+  // Sanitize storage key to prevent path traversal
+  const safeKey = storageKey.replace(/\.\./g, "").replace(/\/\//g, "/");
+
   if (isR2Configured) {
-    return `${process.env.R2_PUBLIC_URL}/${storageKey}`;
+    return `${process.env.R2_PUBLIC_URL}/${safeKey}`;
   }
   // On Vercel, files are in /tmp — serve via API route
   if (process.env.VERCEL) {
-    return `/api/uploads/${encodeURIComponent(storageKey)}`;
+    return `/api/uploads/${encodeURIComponent(safeKey)}`;
   }
-  return `/uploads/${storageKey}`;
+  return `/uploads/${safeKey}`;
 }

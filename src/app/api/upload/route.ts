@@ -4,7 +4,7 @@ import { join, dirname } from "path";
 import { isDemoMode } from "@/lib/demo";
 import { checkRateLimit } from "@/server/services/rate-limit";
 
-const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500 MB
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB
 const VALID_KEY_PATTERN = /^projects\/[0-9a-f-]+\/evidence\/[0-9a-f-]+\/.+$/;
 const UPLOAD_RATE_LIMIT = { max: 20, windowMs: 60_000 }; // 20 uploads/min per IP
 

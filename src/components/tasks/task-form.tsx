@@ -29,7 +29,10 @@ const taskFormSchema = z.object({
   plannedEnd: z.string().optional(),
   status: z.enum(["not_started", "in_progress", "completed", "delayed"]),
   progressPct: z.number().min(0).max(100),
-});
+}).refine(
+  (data) => !data.plannedStart || !data.plannedEnd || data.plannedEnd >= data.plannedStart,
+  { message: "End date must be after start date", path: ["plannedEnd"] }
+);
 
 export type TaskFormValues = z.infer<typeof taskFormSchema>;
 
@@ -185,6 +188,9 @@ export function TaskFormDialog({
             <div className="space-y-2">
               <Label htmlFor="task-end">Planned End</Label>
               <Input id="task-end" type="date" {...register("plannedEnd")} />
+              {errors.plannedEnd && (
+                <p className="text-sm text-destructive">{errors.plannedEnd.message}</p>
+              )}
             </div>
           </div>
 
