@@ -40,6 +40,7 @@ interface TaskOption {
   id: string;
   name: string;
   depth: number;
+  parentTaskId: string | null;
 }
 
 interface TaskFormProps {
@@ -66,7 +67,6 @@ export function TaskFormDialog({
     handleSubmit,
     setValue,
     watch,
-    reset,
     formState: { errors },
   } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -82,12 +82,35 @@ export function TaskFormDialog({
     },
   });
 
-  // Filter out the task being edited (and its descendants) from parent options
-  const parentOptions = tasks.filter((t) => t.id !== editTaskId);
+  // Filter out the task being edited AND its descendants from parent options.
+  // Without this, the server-side cycle guard catches it but the user sees a
+  // backend error instead of the invalid option being hidden in the dropdown.
+  const parentOptions = (() => {
+    if (!editTaskId) return tasks;
+    const descendantIds = new Set<string>([editTaskId]);
+    // Iterate until no new descendants found (handles arbitrary tree depth)
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const t of tasks) {
+        if (
+          t.parentTaskId &&
+          descendantIds.has(t.parentTaskId) &&
+          !descendantIds.has(t.id)
+        ) {
+          descendantIds.add(t.id);
+          changed = true;
+        }
+      }
+    }
+    return tasks.filter((t) => !descendantIds.has(t.id));
+  })();
 
   function handleFormSubmit(values: TaskFormValues) {
+    // Don't reset here — on mutation failure the dialog stays open and the
+    // user needs to fix their input, not start over. On success the parent
+    // closes the dialog, which unmounts DialogContent and clears the form.
     onSubmit(values);
-    reset();
   }
 
   return (

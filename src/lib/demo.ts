@@ -35,13 +35,17 @@ const DEMO_USERS: Record<string, DemoUser> = {
   },
 };
 
-const DEFAULT_DEMO_USER = "contractor-1";
-
-export function getDemoUser(cookieValue?: string | null): DemoUser {
+/**
+ * Resolve a demo user from a cookie value. Returns null if the cookie is
+ * missing or unknown — callers should surface that as "not signed in"
+ * rather than silently picking a default contractor, otherwise anyone
+ * who knows a URL gets an implicit session.
+ */
+export function getDemoUser(cookieValue?: string | null): DemoUser | null {
   if (cookieValue && DEMO_USERS[cookieValue]) {
     return DEMO_USERS[cookieValue];
   }
-  return DEMO_USERS[DEFAULT_DEMO_USER];
+  return null;
 }
 
 export function getDemoUserKeys(): string[] {

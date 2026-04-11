@@ -27,8 +27,15 @@ export async function resolveCurrentUser(headers: Headers): Promise<ResolvedUser
     const validKeys = getDemoUserKeys();
     const safeValue = cookieValue && validKeys.includes(cookieValue) ? cookieValue : null;
     const demoUser = getDemoUser(safeValue);
-    clerkId = demoUser.clerkId;
 
+    // No cookie / unknown cookie → unauthenticated. The /demo picker sets
+    // the cookie, so callers that need a session will redirect/401 until
+    // the tester has chosen a contractor. Do NOT silently default to one.
+    if (!demoUser) {
+      return { clerkId: null, dbUser: null, userId: null, orgId: null };
+    }
+
+    clerkId = demoUser.clerkId;
     try {
       dbUser = await lookupDemoUser(db, demoUser.clerkId);
     } catch (e: unknown) {

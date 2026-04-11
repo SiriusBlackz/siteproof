@@ -18,6 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { UserPlus, Trash2 } from "lucide-react";
 
 export default function ProjectSettingsPage() {
@@ -36,6 +46,10 @@ export default function ProjectSettingsPage() {
   const { data: orgUsers = [] } = trpc.project.orgUsers.useQuery();
 
   const [addUserId, setAddUserId] = useState<string>("");
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    userId: string;
+    name: string;
+  } | null>(null);
 
   const updateProject = trpc.project.update.useMutation({
     onSuccess: () => {
@@ -70,6 +84,7 @@ export default function ProjectSettingsPage() {
   const removeMember = trpc.project.memberRemove.useMutation({
     onSuccess: () => {
       toast.success("Member removed");
+      setPendingRemoval(null);
       utils.project.memberList.invalidate({ projectId: params.projectId });
     },
     onError: (error) => {
@@ -171,12 +186,13 @@ export default function ProjectSettingsPage() {
                       size="sm"
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                       onClick={() =>
-                        removeMember.mutate({
-                          projectId: params.projectId,
+                        setPendingRemoval({
                           userId: member.userId,
+                          name: member.user.name,
                         })
                       }
                       disabled={removeMember.isPending}
+                      aria-label={`Remove ${member.user.name}`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -231,13 +247,13 @@ export default function ProjectSettingsPage() {
               </span>
             </div>
             {project.stripeSubscriptionId && (
-              <button
+              <Button
+                size="sm"
                 onClick={() => portalSession.mutate()}
                 disabled={portalSession.isPending}
-                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {portalSession.isPending ? "Loading..." : "Manage Billing"}
-              </button>
+              </Button>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
@@ -246,6 +262,40 @@ export default function ProjectSettingsPage() {
           </p>
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={pendingRemoval !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingRemoval(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove team member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingRemoval
+                ? `${pendingRemoval.name} will lose access to this project. This doesn't delete their account.`
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pendingRemoval) return;
+                removeMember.mutate({
+                  projectId: params.projectId,
+                  userId: pendingRemoval.userId,
+                });
+              }}
+              disabled={removeMember.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {removeMember.isPending ? "Removing..." : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

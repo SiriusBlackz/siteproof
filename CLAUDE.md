@@ -334,9 +334,10 @@ siteproof/
 - `project.create` — Create project
 - `project.update` — Update project settings
 - `project.archive` — Archive project
-- `project.members.list` — List project members
-- `project.members.add` — Add member to project
-- `project.members.remove` — Remove member
+- `project.memberList` — List project members
+- `project.memberAdd` — Add member to project
+- `project.memberRemove` — Remove member
+- `project.orgUsers` — List users in the caller's organisation
 
 ### Tasks
 - `task.list` — List tasks for project (tree structure)
@@ -370,7 +371,7 @@ siteproof/
 - `report.download` — Get presigned download URL
 
 ### Dashboard
-- `dashboard.projectSummary` — Aggregated stats
+- `dashboard.summary` — Aggregated stats
 - `dashboard.recentActivity` — Recent activity feed
 
 ---
