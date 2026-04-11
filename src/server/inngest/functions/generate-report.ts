@@ -7,6 +7,7 @@ import {
   renderReportHTML,
   htmlToPdf,
 } from "@/server/services/report-generator";
+import { uploadToStorage } from "@/server/services/storage";
 
 export const generateReport = inngest.createFunction(
   {
@@ -36,14 +37,23 @@ export const generateReport = inngest.createFunction(
         signatures?: { role: "contractor" | "project_manager" | "client"; name: string; title?: string; date?: string; imageDataUrl?: string }[];
       };
 
-    // Step 1: Gather report data
+    // Step 1: Gather report data. Look up the already-inserted report row
+    // so we pass its real reportNumber instead of racing with max+1.
     const reportData = await step.run("gather-data", async () => {
+      const existing = await db.query.reports.findFirst({
+        where: eq(reports.id, reportId),
+        columns: { reportNumber: true },
+      });
+      if (!existing) {
+        throw new Error(`Report ${reportId} not found — was it deleted?`);
+      }
       return gatherReportData(db, {
         projectId,
         periodStart,
         periodEnd,
         generatedBy,
         signatures,
+        reportNumber: existing.reportNumber,
       });
     });
 
@@ -57,17 +67,17 @@ export const generateReport = inngest.createFunction(
       };
     });
 
-    // Step 3: Upload PDF to storage (Vercel: /tmp, local dev: .local-uploads/)
+    // Step 3: Upload PDF to storage. R2 in prod, .local-uploads/ in dev.
+    // Vercel's /tmp is per-invocation, so filesystem writes are only viable
+    // for local dev — the PDF handler fetches via fetchFromStorage which
+    // mirrors the same R2 vs local decision.
     const storageKey = await step.run("upload-pdf", async () => {
       const key = `projects/${projectId}/reports/report-${reportData.reportNumber}.pdf`;
-
-      const { writeFile, mkdir } = await import("fs/promises");
-      const { join, dirname } = await import("path");
-      const uploadDir = process.env.VERCEL ? "/tmp/uploads" : join(process.cwd(), ".local-uploads");
-      const filePath = join(uploadDir, key);
-      await mkdir(dirname(filePath), { recursive: true });
-      await writeFile(filePath, Buffer.from(pdfResult.base64, "base64"));
-
+      await uploadToStorage(
+        key,
+        Buffer.from(pdfResult.base64, "base64"),
+        "application/pdf"
+      );
       return key;
     });
 

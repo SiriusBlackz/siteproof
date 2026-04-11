@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { readFile } from "fs/promises";
-import { join } from "path";
 import { db } from "@/server/db";
 import { reports } from "@/server/db/schema";
 import { resolveCurrentUser, DemoEnsureUserError } from "@/server/services/current-user";
 import { assertProjectAccess } from "@/server/trpc/helpers";
+import { fetchFromStorage } from "@/server/services/storage";
 import { TRPCError } from "@trpc/server";
-
-function getUploadDir(): string {
-  if (process.env.VERCEL) return "/tmp/uploads";
-  return join(process.cwd(), ".local-uploads");
-}
 
 function json(status: number, body: unknown) {
   return NextResponse.json(body, { status });
@@ -72,18 +66,16 @@ export async function GET(
     }
   }
 
-  // Resolve the bytes — prefer inline base64 in reportData, fall back to disk.
+  // Resolve the bytes — prefer inline base64, fall back to storage (R2 or disk).
+  // Never hand out a public R2 URL for a report; always stream through this
+  // auth+password-aware route.
   const reportData = report.reportData as Record<string, unknown> | null;
   const pdfBase64 = reportData?.pdfBase64 as string | undefined;
   let pdfBuffer: Buffer | null = null;
   if (pdfBase64) {
     pdfBuffer = Buffer.from(pdfBase64, "base64");
   } else if (report.pdfStorageKey) {
-    try {
-      pdfBuffer = await readFile(join(getUploadDir(), report.pdfStorageKey));
-    } catch {
-      return json(404, { error: "PDF not available" });
-    }
+    pdfBuffer = await fetchFromStorage(report.pdfStorageKey);
   }
   if (!pdfBuffer) {
     return json(404, { error: "PDF not available" });

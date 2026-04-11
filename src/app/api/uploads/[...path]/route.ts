@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile } from "fs/promises";
-import { join } from "path";
-
-function getUploadDir(): string {
-  if (process.env.VERCEL) return "/tmp/uploads";
-  return join(process.cwd(), ".local-uploads");
-}
+import { fetchFromStorage } from "@/server/services/storage";
 import { db } from "@/server/db";
 import { resolveCurrentUser, DemoEnsureUserError } from "@/server/services/current-user";
 import { assertProjectAccess } from "@/server/trpc/helpers";
@@ -84,19 +78,16 @@ export async function GET(
     throw e;
   }
 
-  const filePath = join(getUploadDir(), storageKey);
-  try {
-    const data = await readFile(filePath);
-    const ext = storageKey.split(".").pop()?.toLowerCase() ?? "";
-    const contentType = MIME_TYPES[ext] ?? "application/octet-stream";
-
-    return new NextResponse(new Uint8Array(data), {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "private, max-age=3600",
-      },
-    });
-  } catch {
+  const data = await fetchFromStorage(storageKey);
+  if (!data) {
     return json(404, { error: "File not found" });
   }
+  const ext = storageKey.split(".").pop()?.toLowerCase() ?? "";
+  const contentType = MIME_TYPES[ext] ?? "application/octet-stream";
+  return new NextResponse(new Uint8Array(data), {
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "private, max-age=3600",
+    },
+  });
 }

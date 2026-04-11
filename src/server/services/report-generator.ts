@@ -47,6 +47,13 @@ export interface GenerateReportInput {
   periodStart: string;
   periodEnd: string;
   generatedBy: string;
+  /**
+   * Known report number (from the already-inserted reports row). If omitted
+   * we fall back to computing max+1, but that races against the inserting
+   * tRPC mutation and picks a higher number — pass this from the Inngest
+   * function via event.data.reportId → reports row lookup.
+   */
+  reportNumber?: number;
   signatures?: ReportSignature[];
 }
 
@@ -63,14 +70,24 @@ export async function gatherReportData(db: DB, input: GenerateReportInput) {
 
   const org = project.organisation;
 
-  // 2. Get next report number
-  const existingReports = await db.query.reports.findMany({
-    where: eq(reports.projectId, input.projectId),
-    columns: { reportNumber: true },
-    orderBy: [desc(reports.reportNumber)],
-    limit: 1,
-  });
-  const reportNumber = (existingReports[0]?.reportNumber ?? 0) + 1;
+  // 2. Resolve the report number — prefer the value passed in from the
+  // caller (which reads the already-inserted row). Only fall back to
+  // max+1 for compatibility, and warn about the race.
+  let reportNumber: number;
+  if (input.reportNumber !== undefined) {
+    reportNumber = input.reportNumber;
+  } else {
+    console.warn(
+      "[gatherReportData] No reportNumber passed; computing max+1 (may race with inserting mutation)"
+    );
+    const existingReports = await db.query.reports.findMany({
+      where: eq(reports.projectId, input.projectId),
+      columns: { reportNumber: true },
+      orderBy: [desc(reports.reportNumber)],
+      limit: 1,
+    });
+    reportNumber = (existingReports[0]?.reportNumber ?? 0) + 1;
+  }
 
   // 3. All tasks for project
   const allTasks = await db.query.tasks.findMany({

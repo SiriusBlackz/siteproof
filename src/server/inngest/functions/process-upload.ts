@@ -24,20 +24,16 @@ export const processUpload = inngest.createFunction(
     // Step 2: Generate thumbnail (photos only)
     if (record.type === "photo") {
       const thumbnailKey = await step.run("generate-thumbnail", async () => {
-        const { getPublicUrl } = await import("@/server/services/storage");
-        const url = getPublicUrl(record.storageKey);
+        const { fetchFromStorage, uploadToStorage } = await import(
+          "@/server/services/storage"
+        );
 
-        // Fetch the original image
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-        const fullUrl = url.startsWith("http") ? url : `${baseUrl}${url}`;
-
-        let imageBuffer: Buffer;
-        try {
-          const res = await fetch(fullUrl);
-          if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
-          imageBuffer = Buffer.from(await res.arrayBuffer());
-        } catch {
-          console.warn(`[process-upload] Could not fetch image for thumbnail: ${fullUrl}`);
+        // Fetch the original image bytes directly from storage (R2 or disk)
+        const imageBuffer = await fetchFromStorage(record.storageKey);
+        if (!imageBuffer) {
+          console.warn(
+            `[process-upload] Could not fetch image for thumbnail: ${record.storageKey}`
+          );
           return null;
         }
 
@@ -55,45 +51,8 @@ export const processUpload = inngest.createFunction(
           .jpeg({ quality: 75 })
           .toBuffer();
 
-        // Write thumbnail to storage
-        const thumbKey = record.storageKey.replace(
-          /\/([^/]+)$/,
-          "/thumb_$1"
-        );
-
-        const isR2 =
-          process.env.R2_ACCESS_KEY_ID &&
-          process.env.R2_ACCESS_KEY_ID !== "PLACEHOLDER";
-
-        if (isR2) {
-          const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
-          const client = new S3Client({
-            region: "auto",
-            endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-            credentials: {
-              accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-              secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-            },
-          });
-          await client.send(
-            new PutObjectCommand({
-              Bucket: process.env.R2_BUCKET_NAME!,
-              Key: thumbKey,
-              Body: thumbBuffer,
-              ContentType: "image/jpeg",
-            })
-          );
-        } else {
-          // Local fallback
-          const { writeFile, mkdir } = await import("fs/promises");
-          const { join, dirname } = await import("path");
-          const uploadDir = process.env.VERCEL
-            ? "/tmp/uploads"
-            : join(process.cwd(), ".local-uploads");
-          const filePath = join(uploadDir, thumbKey);
-          await mkdir(dirname(filePath), { recursive: true });
-          await writeFile(filePath, thumbBuffer);
-        }
+        const thumbKey = record.storageKey.replace(/\/([^/]+)$/, "/thumb_$1");
+        await uploadToStorage(thumbKey, thumbBuffer, "image/jpeg");
 
         return thumbKey;
       });
