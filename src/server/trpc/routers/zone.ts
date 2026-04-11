@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
 import { gpsZones } from "@/server/db/schema";
 import { assertProjectAccess, assertTaskInProject } from "../helpers";
-import { writeAuditLog } from "@/server/services/audit";
+import { writeAuditLogAsync } from "@/server/services/audit";
 
 const polygonSchema = z.object({
   type: z.literal("Polygon"),
@@ -49,7 +49,7 @@ export const zoneRouter = createTRPCRouter({
           color: input.color ?? "#3B82F6",
         })
         .returning();
-      writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "create", entityType: "gps_zone", entityId: zone.id, metadata: { name: zone.name } });
+      writeAuditLogAsync(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "create", entityType: "gps_zone", entityId: zone.id, metadata: { name: zone.name } });
       return zone;
     }),
 
@@ -80,7 +80,7 @@ export const zoneRouter = createTRPCRouter({
         .set(data)
         .where(and(eq(gpsZones.id, id), eq(gpsZones.projectId, zone.projectId)))
         .returning();
-      writeAuditLog(ctx.db, { projectId: zone.projectId, userId: ctx.userId, action: "update", entityType: "gps_zone", entityId: id });
+      writeAuditLogAsync(ctx.db, { projectId: zone.projectId, userId: ctx.userId, action: "update", entityType: "gps_zone", entityId: id });
       return updated;
     }),
 
@@ -95,7 +95,7 @@ export const zoneRouter = createTRPCRouter({
       await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId, ctx.userId);
 
       await ctx.db.delete(gpsZones).where(eq(gpsZones.id, input.id));
-      writeAuditLog(ctx.db, { projectId: zone.projectId, userId: ctx.userId, action: "delete", entityType: "gps_zone", entityId: input.id });
+      writeAuditLogAsync(ctx.db, { projectId: zone.projectId, userId: ctx.userId, action: "delete", entityType: "gps_zone", entityId: input.id });
       return { success: true };
     }),
 });

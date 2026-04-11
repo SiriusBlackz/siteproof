@@ -5,7 +5,7 @@ import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
 import { tasks } from "@/server/db/schema";
 import { detectAndParse } from "@/server/services/programme-import";
 import { assertProjectAccess, assertTaskInProject } from "../helpers";
-import { writeAuditLog } from "@/server/services/audit";
+import { writeAuditLogAsync } from "@/server/services/audit";
 
 interface FlatTask {
   id: string;
@@ -110,7 +110,7 @@ export const taskRouter = createTRPCRouter({
           sortOrder: nextSort,
         })
         .returning();
-      writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "create", entityType: "task", entityId: task.id, metadata: { name: task.name } });
+      writeAuditLogAsync(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "create", entityType: "task", entityId: task.id, metadata: { name: task.name } });
       return task;
     }),
 
@@ -173,7 +173,7 @@ export const taskRouter = createTRPCRouter({
         .set({ ...cleaned, updatedAt: new Date() })
         .where(eq(tasks.id, id))
         .returning();
-      writeAuditLog(ctx.db, { projectId: existing.projectId, userId: ctx.userId, action: "update", entityType: "task", entityId: id });
+      writeAuditLogAsync(ctx.db, { projectId: existing.projectId, userId: ctx.userId, action: "update", entityType: "task", entityId: id });
       return task;
     }),
 
@@ -195,7 +195,7 @@ export const taskRouter = createTRPCRouter({
         await tx
           .delete(tasks)
           .where(and(eq(tasks.id, input.id), eq(tasks.projectId, task.projectId)));
-        writeAuditLog(ctx.db, { projectId: task.projectId, userId: ctx.userId, action: "delete", entityType: "task", entityId: input.id, metadata: { name: task.name } });
+        writeAuditLogAsync(ctx.db, { projectId: task.projectId, userId: ctx.userId, action: "delete", entityType: "task", entityId: input.id, metadata: { name: task.name } });
         return { success: true };
       });
     }),
@@ -305,7 +305,7 @@ export const taskRouter = createTRPCRouter({
           refToId.set(pt.sourceRef, inserted.id);
         }
 
-        writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "import", entityType: "task", entityId: input.projectId, metadata: { count: parsedTasks.length, format } });
+        writeAuditLogAsync(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "import", entityType: "task", entityId: input.projectId, metadata: { count: parsedTasks.length, format } });
         return { imported: parsedTasks.length, format };
       });
     }),

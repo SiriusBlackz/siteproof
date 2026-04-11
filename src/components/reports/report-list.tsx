@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { TRPCClientError } from "@trpc/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -38,53 +39,50 @@ interface ReportListProps {
 }
 
 export function ReportList({ reports }: ReportListProps) {
-  const [downloadId, setDownloadId] = useState<string | null>(null);
+  const utils = trpc.useUtils();
+  // Transient UI state for the spinner + password dialog.
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [pwPrompt, setPwPrompt] = useState<Report | null>(null);
   const [downloadPassword, setDownloadPassword] = useState("");
-  const [needsPassword, setNeedsPassword] = useState(false);
 
-  const downloadQuery = trpc.report.download.useQuery(
-    {
-      id: downloadId ?? "",
-      password: downloadPassword || undefined,
-    },
-    {
-      enabled: !!downloadId && (!needsPassword || !!downloadPassword),
-      retry: false,
-    }
-  );
-
-  // When download URL is available, open it
-  if (downloadQuery.data?.url && downloadId) {
-    window.open(downloadQuery.data.url, "_blank");
-    setDownloadId(null);
-    setDownloadPassword("");
-    setNeedsPassword(false);
-  }
-
-  if (downloadQuery.error && downloadId) {
-    const msg = downloadQuery.error.message;
-    if (msg === "Password required" && !needsPassword) {
-      setNeedsPassword(true);
-    } else if (msg !== "Password required") {
-      toast.error(msg);
-      setDownloadId(null);
+  async function runDownload(report: Report, password?: string) {
+    setLoadingId(report.id);
+    try {
+      const result = await utils.report.download.fetch({
+        id: report.id,
+        password,
+      });
+      window.open(result.url, "_blank");
+      setPwPrompt(null);
       setDownloadPassword("");
-      setNeedsPassword(false);
+    } catch (err) {
+      if (
+        err instanceof TRPCClientError &&
+        err.message === "Password required"
+      ) {
+        setPwPrompt(report);
+        return;
+      }
+      const msg = err instanceof Error ? err.message : "Download failed";
+      toast.error(msg);
+      setPwPrompt(null);
+      setDownloadPassword("");
+    } finally {
+      setLoadingId(null);
     }
   }
 
   function handleDownload(report: Report) {
     if (report.passwordHash) {
-      setNeedsPassword(true);
-      setDownloadId(report.id);
-    } else {
-      setDownloadId(report.id);
+      setPwPrompt(report);
+      return;
     }
+    void runDownload(report);
   }
 
   function handlePasswordSubmit() {
-    // The query will re-run with the password
-    setNeedsPassword(false);
+    if (!pwPrompt || !downloadPassword) return;
+    void runDownload(pwPrompt, downloadPassword);
   }
 
   if (reports.length === 0) {
@@ -139,10 +137,10 @@ export function ReportList({ reports }: ReportListProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={report.status !== "completed"}
+                  disabled={report.status !== "completed" || loadingId === report.id}
                   onClick={() => handleDownload(report)}
                 >
-                  {downloadId === report.id && downloadQuery.isLoading ? (
+                  {loadingId === report.id ? (
                     <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                   ) : (
                     <Download className="mr-1 h-3 w-3" />
@@ -156,23 +154,23 @@ export function ReportList({ reports }: ReportListProps) {
       </Table>
 
       <Dialog
-        open={needsPassword && !!downloadId}
+        open={!!pwPrompt}
         onOpenChange={(open) => {
           if (!open) {
-            setNeedsPassword(false);
-            setDownloadId(null);
+            setPwPrompt(null);
             setDownloadPassword("");
           }
         }}
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Password Required</DialogTitle>
+            <DialogTitle>Password required</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             <Input
               type="password"
               placeholder="Enter report password"
+              autoFocus
               value={downloadPassword}
               onChange={(e) => setDownloadPassword(e.target.value)}
               onKeyDown={(e) => {
@@ -183,8 +181,11 @@ export function ReportList({ reports }: ReportListProps) {
           <DialogFooter>
             <Button
               onClick={handlePasswordSubmit}
-              disabled={!downloadPassword}
+              disabled={!downloadPassword || loadingId === pwPrompt?.id}
             >
+              {loadingId === pwPrompt?.id ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : null}
               Download
             </Button>
           </DialogFooter>

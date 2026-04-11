@@ -301,6 +301,14 @@ export const reportsRelations = relations(reports, ({ one }) => ({
   }),
 }));
 
+// ─── Stripe Events (idempotency cache) ──────────────────────────────────────
+
+export const stripeEvents = pgTable("stripe_events", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+});
+
 // ─── Upload Intents ──────────────────────────────────────────────────────────
 
 export const uploadIntents = pgTable(

@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
 import { projects, organisations, projectMembers, users } from "@/server/db/schema";
 import { assertProjectAccess } from "../helpers";
-import { writeAuditLog } from "@/server/services/audit";
+import { writeAuditLogAsync } from "@/server/services/audit";
 import {
   getOrCreateCustomer,
   createCheckoutSession,
@@ -80,7 +80,7 @@ export const projectRouter = createTRPCRouter({
         })
         .returning();
 
-      writeAuditLog(ctx.db, { projectId: project.id, userId: ctx.userId, action: "create", entityType: "project", entityId: project.id, metadata: { name: project.name } });
+      writeAuditLogAsync(ctx.db, { projectId: project.id, userId: ctx.userId, action: "create", entityType: "project", entityId: project.id, metadata: { name: project.name } });
 
       // Skip Stripe in dev when not configured
       if (!stripeConfigured) {
@@ -137,7 +137,7 @@ export const projectRouter = createTRPCRouter({
         .set({ ...cleaned, updatedAt: new Date() })
         .where(eq(projects.id, id))
         .returning();
-      writeAuditLog(ctx.db, { projectId: id, userId: ctx.userId, action: "update", entityType: "project", entityId: id });
+      writeAuditLogAsync(ctx.db, { projectId: id, userId: ctx.userId, action: "update", entityType: "project", entityId: id });
       return project;
     }),
 
@@ -163,7 +163,7 @@ export const projectRouter = createTRPCRouter({
         .set({ status: "archived", updatedAt: new Date() })
         .where(eq(projects.id, input.id))
         .returning();
-      writeAuditLog(ctx.db, { projectId: input.id, userId: ctx.userId, action: "archive", entityType: "project", entityId: input.id });
+      writeAuditLogAsync(ctx.db, { projectId: input.id, userId: ctx.userId, action: "archive", entityType: "project", entityId: input.id });
       return project;
     }),
 
@@ -254,7 +254,7 @@ export const projectRouter = createTRPCRouter({
         })
         .returning();
 
-      writeAuditLog(ctx.db, {
+      writeAuditLogAsync(ctx.db, {
         projectId: input.projectId,
         userId: ctx.userId,
         action: "add_member",
@@ -295,7 +295,7 @@ export const projectRouter = createTRPCRouter({
           )
         );
 
-      writeAuditLog(ctx.db, {
+      writeAuditLogAsync(ctx.db, {
         projectId: input.projectId,
         userId: ctx.userId,
         action: "remove_member",

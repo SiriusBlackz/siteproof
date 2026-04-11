@@ -6,7 +6,7 @@ import { evidence, evidenceLinks, users, uploadIntents } from "@/server/db/schem
 import { getUploadUrl, getPublicUrl } from "@/server/services/storage";
 import { suggestTasks } from "@/server/services/ai-linker";
 import { assertProjectAccess, assertTaskInProject } from "../helpers";
-import { writeAuditLog } from "@/server/services/audit";
+import { writeAuditLogAsync } from "@/server/services/audit";
 import { inngest } from "@/server/inngest/client";
 import crypto from "crypto";
 
@@ -128,7 +128,7 @@ export const evidenceRouter = createTRPCRouter({
         .update(uploadIntents)
         .set({ consumedAt: new Date() })
         .where(eq(uploadIntents.id, intent.id));
-      writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "upload", entityType: "evidence", entityId: record.id, metadata: { filename: input.originalFilename } });
+      writeAuditLogAsync(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "upload", entityType: "evidence", entityId: record.id, metadata: { filename: input.originalFilename } });
 
       // Trigger background processing (thumbnail generation)
       inngest
@@ -277,7 +277,7 @@ export const evidenceRouter = createTRPCRouter({
         })
         .onConflictDoNothing()
         .returning();
-      if (link) writeAuditLog(ctx.db, { projectId: ev.projectId, userId: ctx.userId, action: "link", entityType: "evidence_link", entityId: link.id, metadata: { evidenceId: input.evidenceId, taskId: input.taskId } });
+      if (link) writeAuditLogAsync(ctx.db, { projectId: ev.projectId, userId: ctx.userId, action: "link", entityType: "evidence_link", entityId: link.id, metadata: { evidenceId: input.evidenceId, taskId: input.taskId } });
       return link ?? { alreadyLinked: true };
     }),
 
@@ -304,7 +304,7 @@ export const evidenceRouter = createTRPCRouter({
             eq(evidenceLinks.taskId, input.taskId)
           )
         );
-      writeAuditLog(ctx.db, { projectId: ev.projectId, userId: ctx.userId, action: "unlink", entityType: "evidence_link", entityId: input.evidenceId, metadata: { taskId: input.taskId } });
+      writeAuditLogAsync(ctx.db, { projectId: ev.projectId, userId: ctx.userId, action: "unlink", entityType: "evidence_link", entityId: input.evidenceId, metadata: { taskId: input.taskId } });
       return { success: true };
     }),
 
@@ -390,7 +390,7 @@ export const evidenceRouter = createTRPCRouter({
         .values(values)
         .onConflictDoNothing();
 
-      writeAuditLog(ctx.db, {
+      writeAuditLogAsync(ctx.db, {
         projectId,
         userId: ctx.userId,
         action: "bulk_link",

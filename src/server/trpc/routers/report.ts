@@ -5,7 +5,7 @@ import { createTRPCRouter, protectedProcedure } from "../index";
 import { reports } from "@/server/db/schema";
 import { inngest } from "@/server/inngest/client";
 import { assertProjectAccess } from "../helpers";
-import { writeAuditLog } from "@/server/services/audit";
+import { writeAuditLogAsync } from "@/server/services/audit";
 import bcrypt from "bcryptjs";
 
 export const reportRouter = createTRPCRouter({
@@ -113,7 +113,7 @@ export const reportRouter = createTRPCRouter({
         });
       }
 
-      writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "generate", entityType: "report", entityId: report.id, metadata: { reportNumber, periodStart: input.periodStart, periodEnd: input.periodEnd } });
+      writeAuditLogAsync(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "generate", entityType: "report", entityId: report.id, metadata: { reportNumber, periodStart: input.periodStart, periodEnd: input.periodEnd } });
       return report;
     }),
 
