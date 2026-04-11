@@ -15,7 +15,7 @@ const UPLOAD_RATE_LIMIT = { max: 20, windowMs: 60_000 }; // 20 uploads/min per I
 
 function getUploadDir(): string {
   if (process.env.VERCEL) return "/tmp/uploads";
-  return join(process.cwd(), "public", "uploads");
+  return join(process.cwd(), ".local-uploads");
 }
 
 function json(status: number, body: unknown, extraHeaders?: Record<string, string>) {
@@ -24,9 +24,9 @@ function json(status: number, body: unknown, extraHeaders?: Record<string, strin
 
 /**
  * Local/demo fallback for file uploads — writes to /tmp/uploads on Vercel or
- * public/uploads locally. Only used when R2 is not configured.
- * Every upload must be backed by a fresh upload_intents row created by
- * evidence.getUploadUrl for the same user+project.
+ * .local-uploads/ locally (gitignored, NOT served by Next static). Only used
+ * when R2 is not configured. Every upload must be backed by a fresh
+ * upload_intents row created by evidence.getUploadUrl for the same user+project.
  */
 export async function POST(req: NextRequest) {
   // Rate limit by IP (defense against abuse)

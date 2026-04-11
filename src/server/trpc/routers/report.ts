@@ -106,6 +106,11 @@ export const reportRouter = createTRPCRouter({
           .update(reports)
           .set({ status: "failed" })
           .where(eq(reports.id, report.id));
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Could not queue report generation. Please try again later.",
+          cause: err,
+        });
       }
 
       writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "generate", entityType: "report", entityId: report.id, metadata: { reportNumber, periodStart: input.periodStart, periodEnd: input.periodEnd } });

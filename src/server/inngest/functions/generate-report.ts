@@ -57,13 +57,13 @@ export const generateReport = inngest.createFunction(
       };
     });
 
-    // Step 3: Upload PDF to storage (local dev writes to public/uploads/)
+    // Step 3: Upload PDF to storage (Vercel: /tmp, local dev: .local-uploads/)
     const storageKey = await step.run("upload-pdf", async () => {
       const key = `projects/${projectId}/reports/report-${reportData.reportNumber}.pdf`;
 
       const { writeFile, mkdir } = await import("fs/promises");
       const { join, dirname } = await import("path");
-      const uploadDir = process.env.VERCEL ? "/tmp/uploads" : join(process.cwd(), "public", "uploads");
+      const uploadDir = process.env.VERCEL ? "/tmp/uploads" : join(process.cwd(), ".local-uploads");
       const filePath = join(uploadDir, key);
       await mkdir(dirname(filePath), { recursive: true });
       await writeFile(filePath, Buffer.from(pdfResult.base64, "base64"));

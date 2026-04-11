@@ -41,6 +41,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local upload fallback (demo mode without R2)
+/.local-uploads
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

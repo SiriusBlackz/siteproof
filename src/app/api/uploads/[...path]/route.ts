@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import { join } from "path";
+
+function getUploadDir(): string {
+  if (process.env.VERCEL) return "/tmp/uploads";
+  return join(process.cwd(), ".local-uploads");
+}
 import { db } from "@/server/db";
 import { resolveCurrentUser, DemoEnsureUserError } from "@/server/services/current-user";
 import { assertProjectAccess } from "@/server/trpc/helpers";
@@ -79,7 +84,7 @@ export async function GET(
     throw e;
   }
 
-  const filePath = join("/tmp/uploads", storageKey);
+  const filePath = join(getUploadDir(), storageKey);
   try {
     const data = await readFile(filePath);
     const ext = storageKey.split(".").pop()?.toLowerCase() ?? "";

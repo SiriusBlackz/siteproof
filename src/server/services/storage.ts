@@ -59,9 +59,9 @@ export function getPublicUrl(storageKey: string): string {
   if (isR2Configured) {
     return `${process.env.R2_PUBLIC_URL}/${safeKey}`;
   }
-  // On Vercel, files are in /tmp — serve via API route
-  if (process.env.VERCEL) {
-    return `/api/uploads/${encodeURIComponent(safeKey)}`;
-  }
-  return `/uploads/${safeKey}`;
+  // Always go through the auth'd /api/uploads/ route when R2 isn't configured.
+  // On Vercel the underlying file lives in /tmp; locally it lives in
+  // .local-uploads/ (gitignored). Both are served via the same hardened
+  // handler so dev testing exercises the same code path as production demo.
+  return `/api/uploads/${safeKey.split("/").map(encodeURIComponent).join("/")}`;
 }

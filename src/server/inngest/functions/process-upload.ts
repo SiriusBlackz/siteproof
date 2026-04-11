@@ -89,7 +89,7 @@ export const processUpload = inngest.createFunction(
           const { join, dirname } = await import("path");
           const uploadDir = process.env.VERCEL
             ? "/tmp/uploads"
-            : join(process.cwd(), "public", "uploads");
+            : join(process.cwd(), ".local-uploads");
           const filePath = join(uploadDir, thumbKey);
           await mkdir(dirname(filePath), { recursive: true });
           await writeFile(filePath, thumbBuffer);

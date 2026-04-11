@@ -11,7 +11,7 @@ import { TRPCError } from "@trpc/server";
 
 function getUploadDir(): string {
   if (process.env.VERCEL) return "/tmp/uploads";
-  return join(process.cwd(), "public", "uploads");
+  return join(process.cwd(), ".local-uploads");
 }
 
 function json(status: number, body: unknown) {
