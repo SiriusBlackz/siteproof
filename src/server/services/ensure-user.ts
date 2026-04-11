@@ -13,6 +13,37 @@ export interface DbUser {
   role: string;
 }
 
+export class DemoNotSeededError extends Error {
+  constructor(clerkId: string) {
+    super(
+      `Demo user "${clerkId}" not found in database. Run \`pnpm db:seed:demo\` to seed demo data.`
+    );
+    this.name = "DemoNotSeededError";
+  }
+}
+
+/**
+ * Look up a pre-seeded demo user by clerkId. Does NOT auto-provision —
+ * demo mode must run against a deterministic seed so demo sessions
+ * resolve consistently across requests and instances.
+ */
+export async function lookupDemoUser(db: DB, clerkId: string): Promise<DbUser> {
+  const existing = await db.query.users.findFirst({
+    where: eq(users.clerkId, clerkId),
+  });
+  if (!existing) {
+    throw new DemoNotSeededError(clerkId);
+  }
+  return {
+    id: existing.id,
+    orgId: existing.orgId,
+    clerkId: existing.clerkId,
+    email: existing.email,
+    name: existing.name,
+    role: existing.role,
+  };
+}
+
 /**
  * Find the database user record for a Clerk user ID.
  * If no record exists, auto-provision an organisation and user record.

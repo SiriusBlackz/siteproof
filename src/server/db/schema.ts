@@ -301,6 +301,31 @@ export const reportsRelations = relations(reports, ({ one }) => ({
   }),
 }));
 
+// ─── Upload Intents ──────────────────────────────────────────────────────────
+
+export const uploadIntents = pgTable(
+  "upload_intents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    storageKey: text("storage_key").notNull(),
+    contentType: text("content_type").notNull(),
+    maxSizeBytes: bigint("max_size_bytes", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+  },
+  (t) => [
+    unique("upload_intents_storage_key_unique").on(t.storageKey),
+    index("upload_intents_expires_idx").on(t.expiresAt),
+  ]
+);
+
 // ─── Audit Log ───────────────────────────────────────────────────────────────
 
 export const auditLog = pgTable("audit_log", {

@@ -4,15 +4,39 @@ import { ZodError } from "zod";
 import type { Context } from "./context";
 import { checkRateLimit, MUTATION_CONFIG } from "@/server/services/rate-limit";
 
+const isDev = process.env.NODE_ENV === "development";
+
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
+    // Log full context server-side for every non-trivial error.
+    if (error.code === "INTERNAL_SERVER_ERROR") {
+      console.error("[tRPC]", error.code, error.message, error.cause);
+    }
+
+    const zodError =
+      error.cause instanceof ZodError ? error.cause.flatten() : null;
+
+    // In dev, return the full shape so debugging stays ergonomic.
+    if (isDev) {
+      return { ...shape, data: { ...shape.data, zodError } };
+    }
+
+    // In production, strip stack + cause, and replace generic 500 messages
+    // with a safe static string so we don't leak SQL, env details, or paths.
+    const safeMessage =
+      error.code === "INTERNAL_SERVER_ERROR"
+        ? "Something went wrong. Please try again."
+        : shape.message;
+
     return {
-      ...shape,
+      message: safeMessage,
+      code: shape.code,
       data: {
-        ...shape.data,
-        zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
+        code: shape.data.code,
+        httpStatus: shape.data.httpStatus,
+        path: shape.data.path,
+        zodError,
       },
     };
   },

@@ -1,6 +1,13 @@
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { projects, projectMembers, users } from "@/server/db/schema";
+import {
+  projects,
+  projectMembers,
+  users,
+  tasks,
+  evidence,
+  gpsZones,
+} from "@/server/db/schema";
 import type { db as dbType } from "@/server/db";
 
 type DB = typeof dbType;
@@ -50,4 +57,46 @@ export async function assertProjectAccess(
   }
 
   return project;
+}
+
+export async function assertTaskInProject(db: DB, taskId: string, projectId: string) {
+  const task = await db.query.tasks.findFirst({
+    where: eq(tasks.id, taskId),
+    columns: { id: true, projectId: true },
+  });
+  if (!task) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Task not found" });
+  }
+  if (task.projectId !== projectId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Task does not belong to this project" });
+  }
+  return task;
+}
+
+export async function assertEvidenceInProject(db: DB, evidenceId: string, projectId: string) {
+  const ev = await db.query.evidence.findFirst({
+    where: eq(evidence.id, evidenceId),
+    columns: { id: true, projectId: true },
+  });
+  if (!ev) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Evidence not found" });
+  }
+  if (ev.projectId !== projectId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Evidence does not belong to this project" });
+  }
+  return ev;
+}
+
+export async function assertZoneInProject(db: DB, zoneId: string, projectId: string) {
+  const zone = await db.query.gpsZones.findFirst({
+    where: eq(gpsZones.id, zoneId),
+    columns: { id: true, projectId: true },
+  });
+  if (!zone) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Zone not found" });
+  }
+  if (zone.projectId !== projectId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Zone does not belong to this project" });
+  }
+  return zone;
 }

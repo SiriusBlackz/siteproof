@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
 import { gpsZones } from "@/server/db/schema";
-import { assertProjectAccess } from "../helpers";
+import { assertProjectAccess, assertTaskInProject } from "../helpers";
 import { writeAuditLog } from "@/server/services/audit";
 
 const polygonSchema = z.object({
@@ -36,6 +36,9 @@ export const zoneRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
+      if (input.defaultTaskId) {
+        await assertTaskInProject(ctx.db, input.defaultTaskId, input.projectId);
+      }
       const [zone] = await ctx.db
         .insert(gpsZones)
         .values({
@@ -67,12 +70,15 @@ export const zoneRouter = createTRPCRouter({
       });
       if (!zone) throw new TRPCError({ code: "NOT_FOUND", message: "Zone not found" });
       await assertProjectAccess(ctx.db, zone.projectId, ctx.orgId, ctx.userId);
+      if (input.defaultTaskId) {
+        await assertTaskInProject(ctx.db, input.defaultTaskId, zone.projectId);
+      }
 
       const { id, ...data } = input;
       const [updated] = await ctx.db
         .update(gpsZones)
         .set(data)
-        .where(eq(gpsZones.id, id))
+        .where(and(eq(gpsZones.id, id), eq(gpsZones.projectId, zone.projectId)))
         .returning();
       writeAuditLog(ctx.db, { projectId: zone.projectId, userId: ctx.userId, action: "update", entityType: "gps_zone", entityId: id });
       return updated;

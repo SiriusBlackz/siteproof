@@ -2,10 +2,10 @@ import { z } from "zod";
 import { eq, and, desc, lte, gte, sql, inArray, ilike, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../index";
-import { evidence, evidenceLinks, users } from "@/server/db/schema";
+import { evidence, evidenceLinks, users, uploadIntents } from "@/server/db/schema";
 import { getUploadUrl, getPublicUrl } from "@/server/services/storage";
 import { suggestTasks } from "@/server/services/ai-linker";
-import { assertProjectAccess } from "../helpers";
+import { assertProjectAccess, assertTaskInProject } from "../helpers";
 import { writeAuditLog } from "@/server/services/audit";
 import { inngest } from "@/server/inngest/client";
 import crypto from "crypto";
@@ -22,6 +22,7 @@ const ALLOWED_MIME_TYPES = [
 ] as const;
 
 const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
+const UPLOAD_INTENT_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 export const evidenceRouter = createTRPCRouter({
   getUploadUrl: protectedProcedure
@@ -40,8 +41,22 @@ export const evidenceRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const evidenceId = crypto.randomUUID();
-      const storageKey = `projects/${input.projectId}/evidence/${evidenceId}/${input.filename}`;
+      // Sanitize filename — keep only safe chars, drop path separators
+      const safeFilename = input.filename.replace(/[^\w.\-]/g, "_").slice(0, 200);
+      const storageKey = `projects/${input.projectId}/evidence/${evidenceId}/${safeFilename}`;
       const result = await getUploadUrl(storageKey, input.contentType);
+
+      // Record the upload intent so confirm() can verify the storageKey
+      // was actually minted for this user+project.
+      await ctx.db.insert(uploadIntents).values({
+        projectId: input.projectId,
+        userId: ctx.userId,
+        storageKey,
+        contentType: input.contentType,
+        maxSizeBytes: input.fileSizeBytes,
+        expiresAt: new Date(Date.now() + UPLOAD_INTENT_TTL_MS),
+      });
+
       return { ...result, evidenceId };
     }),
 
@@ -63,6 +78,30 @@ export const evidenceRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
+
+      // Verify an outstanding upload intent matches this storageKey + caller.
+      const intent = await ctx.db.query.uploadIntents.findFirst({
+        where: eq(uploadIntents.storageKey, input.storageKey),
+      });
+      if (!intent) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Upload intent not found" });
+      }
+      if (intent.consumedAt) {
+        throw new TRPCError({ code: "CONFLICT", message: "Upload already confirmed" });
+      }
+      if (intent.userId !== ctx.userId || intent.projectId !== input.projectId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Upload intent does not match caller" });
+      }
+      if (intent.expiresAt < new Date()) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Upload intent has expired" });
+      }
+      if (input.fileSizeBytes > intent.maxSizeBytes) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "File exceeds declared size" });
+      }
+      if (!input.mimeType.startsWith("image/") && !input.mimeType.startsWith("video/")) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Unsupported mime type" });
+      }
+
       const type = input.mimeType.startsWith("video/") ? "video" : "photo";
 
       const [record] = await ctx.db
@@ -83,6 +122,12 @@ export const evidenceRouter = createTRPCRouter({
           note: input.note,
         })
         .returning();
+
+      // Mark the intent consumed so it can't be replayed.
+      await ctx.db
+        .update(uploadIntents)
+        .set({ consumedAt: new Date() })
+        .where(eq(uploadIntents.id, intent.id));
       writeAuditLog(ctx.db, { projectId: input.projectId, userId: ctx.userId, action: "upload", entityType: "evidence", entityId: record.id, metadata: { filename: input.originalFilename } });
 
       // Trigger background processing (thumbnail generation)
@@ -209,6 +254,7 @@ export const evidenceRouter = createTRPCRouter({
       });
       if (!ev) throw new TRPCError({ code: "NOT_FOUND", message: "Evidence not found" });
       await assertProjectAccess(ctx.db, ev.projectId, ctx.orgId, ctx.userId);
+      await assertTaskInProject(ctx.db, input.taskId, ev.projectId);
 
       const [link] = await ctx.db
         .insert(evidenceLinks)
@@ -312,9 +358,15 @@ export const evidenceRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "One or more evidence items not found" });
       }
       const projectIds = new Set(items.map((e) => e.projectId));
-      for (const pid of projectIds) {
-        await assertProjectAccess(ctx.db, pid, ctx.orgId, ctx.userId);
+      if (projectIds.size !== 1) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot bulk-link evidence from multiple projects",
+        });
       }
+      const [projectId] = [...projectIds];
+      await assertProjectAccess(ctx.db, projectId, ctx.orgId, ctx.userId);
+      await assertTaskInProject(ctx.db, input.taskId, projectId);
 
       // Insert links, skip duplicates
       const values = input.evidenceIds.map((eid) => ({
@@ -327,7 +379,6 @@ export const evidenceRouter = createTRPCRouter({
         .values(values)
         .onConflictDoNothing();
 
-      const projectId = items[0].projectId;
       writeAuditLog(ctx.db, {
         projectId,
         userId: ctx.userId,

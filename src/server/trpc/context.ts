@@ -1,82 +1,33 @@
 import { db } from "@/server/db";
-import { ensureUser, type DbUser } from "@/server/services/ensure-user";
-import { isDemoMode, getDemoUser } from "@/lib/demo";
+import { resolveCurrentUser, DemoEnsureUserError } from "@/server/services/current-user";
 
 export async function createTRPCContext(opts: { headers: Headers }) {
-  let clerkId: string | null = null;
-  let dbUser: DbUser | null = null;
-
-  if (isDemoMode()) {
-    // Demo mode: read identity from cookie, bypass Clerk entirely
-    const cookieHeader = opts.headers.get("cookie") ?? "";
-    const match = cookieHeader.match(/demo_user=([^;]+)/);
-    const cookieValue = match?.[1] ?? null;
-
-    // Validate cookie value against known demo users to prevent clerkId injection
-    const { getDemoUserKeys } = await import("@/lib/demo");
-    const validKeys = getDemoUserKeys();
-    const safeValue = cookieValue && validKeys.includes(cookieValue) ? cookieValue : null;
-
-    const demoUser = getDemoUser(safeValue);
-    clerkId = demoUser.clerkId;
-
-    try {
-      dbUser = await ensureUser(db, demoUser.clerkId, {
-        email: demoUser.email,
-        name: demoUser.name,
-      });
-    } catch (e: unknown) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      const cause = (e as Record<string, unknown>)?.cause;
-      const causeMsg = cause instanceof Error ? cause.message : String((e as Record<string, unknown>)?.code ?? "");
-      throw new Error(`Demo ensureUser failed: ${err.message} | cause: ${causeMsg} | stack: ${err.stack?.split("\n").slice(0, 3).join(" ")}`);
+  let resolved;
+  try {
+    resolved = await resolveCurrentUser(opts.headers);
+  } catch (e) {
+    if (e instanceof DemoEnsureUserError) {
+      console.error("[tRPC context] demo user resolution failed:", e.cause);
+      // Surface a safe error; the tRPC error formatter strips internals.
+      throw new Error("Demo session unavailable");
     }
-  } else {
-    const { auth, currentUser } = await import("@clerk/nextjs/server");
-
-    try {
-      const authResult = await auth();
-      clerkId = authResult.userId;
-    } catch (e) {
-      console.error("[tRPC context] auth() failed:", e);
-    }
-
-    if (clerkId) {
-      try {
-        const clerk = await currentUser();
-        if (clerk) {
-          dbUser = await ensureUser(db, clerkId, {
-            email:
-              clerk.emailAddresses[0]?.emailAddress ??
-              `${clerkId}@siteproof.app`,
-            name:
-              [clerk.firstName, clerk.lastName].filter(Boolean).join(" ") ||
-              (clerk.emailAddresses[0]?.emailAddress ?? "User"),
-            imageUrl: clerk.imageUrl,
-          });
-        } else {
-          console.warn("[tRPC context] currentUser() returned null for clerkId:", clerkId);
-        }
-      } catch (e) {
-        console.error("[tRPC context] ensureUser failed:", e);
-      }
-    }
+    throw e;
   }
 
   if (process.env.NODE_ENV === "development") {
     console.log("[tRPC context]", {
-      clerkId,
-      dbUserId: dbUser?.id ?? null,
-      orgId: dbUser?.orgId ?? null,
+      clerkId: resolved.clerkId,
+      dbUserId: resolved.userId,
+      orgId: resolved.orgId,
     });
   }
 
   return {
     db,
-    clerkId,
-    userId: dbUser?.id ?? null,
-    orgId: dbUser?.orgId ?? null,
-    dbUser,
+    clerkId: resolved.clerkId,
+    userId: resolved.userId,
+    orgId: resolved.orgId,
+    dbUser: resolved.dbUser,
     headers: opts.headers,
   };
 }

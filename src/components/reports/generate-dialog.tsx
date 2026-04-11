@@ -142,7 +142,7 @@ export function GenerateDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="report-password">PDF Password (optional)</Label>
+            <Label htmlFor="report-password">Download password (optional)</Label>
             <Input
               id="report-password"
               type="password"
@@ -151,7 +151,8 @@ export function GenerateDialog({
               placeholder="Leave blank for no password"
             />
             <p className="text-xs text-muted-foreground">
-              If set, the password will be required to download the report.
+              If set, this password will be required to download the report.
+              Note: this gates the download URL; it does not encrypt the PDF file itself.
             </p>
           </div>
 

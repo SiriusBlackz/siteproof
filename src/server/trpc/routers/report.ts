@@ -4,7 +4,6 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "../index";
 import { reports } from "@/server/db/schema";
 import { inngest } from "@/server/inngest/client";
-import { getPublicUrl } from "@/server/services/storage";
 import { assertProjectAccess } from "../helpers";
 import { writeAuditLog } from "@/server/services/audit";
 import bcrypt from "bcryptjs";
@@ -97,7 +96,6 @@ export const reportRouter = createTRPCRouter({
             projectId: input.projectId,
             periodStart: input.periodStart,
             periodEnd: input.periodEnd,
-            password: input.password,
             generatedBy: ctx.userId,
             signatures: input.signatures,
           },
@@ -138,17 +136,14 @@ export const reportRouter = createTRPCRouter({
         if (!match) throw new TRPCError({ code: "UNAUTHORIZED", message: "Incorrect password" });
       }
 
-      // If PDF is stored in DB (no R2), serve via dedicated API route
-      const reportDataObj = report.reportData as Record<string, unknown> | null;
-      if (reportDataObj?.pdfBase64) {
-        return {
-          url: `/api/reports/${report.id}/pdf`,
-          filename: `report-${report.reportNumber}.pdf`,
-        };
-      }
-
+      // Report PDFs are always served through the dedicated, auth-aware route,
+      // which re-checks project access and validates the password server-side.
+      // Pass the validated password via query so users don't re-enter it.
+      const suffix = input.password
+        ? `?p=${encodeURIComponent(input.password)}`
+        : "";
       return {
-        url: getPublicUrl(report.pdfStorageKey),
+        url: `/api/reports/${report.id}/pdf${suffix}`,
         filename: `report-${report.reportNumber}.pdf`,
       };
     }),

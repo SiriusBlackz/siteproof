@@ -26,13 +26,12 @@ export const generateReport = inngest.createFunction(
     },
   },
   async ({ event, step }) => {
-    const { reportId, projectId, periodStart, periodEnd, password, generatedBy, signatures } =
+    const { reportId, projectId, periodStart, periodEnd, generatedBy, signatures } =
       event.data as {
         reportId: string;
         projectId: string;
         periodStart: string;
         periodEnd: string;
-        password?: string;
         generatedBy: string;
         signatures?: { role: "contractor" | "project_manager" | "client"; name: string; title?: string; date?: string; imageDataUrl?: string }[];
       };
@@ -43,7 +42,6 @@ export const generateReport = inngest.createFunction(
         projectId,
         periodStart,
         periodEnd,
-        password,
         generatedBy,
         signatures,
       });
@@ -52,7 +50,7 @@ export const generateReport = inngest.createFunction(
     // Step 2: Render HTML and convert to PDF
     const pdfResult = await step.run("render-pdf", async () => {
       const html = await renderReportHTML(reportData);
-      const pdfBuffer = await htmlToPdf(html, password);
+      const pdfBuffer = await htmlToPdf(html);
       return {
         size: pdfBuffer.length,
         base64: pdfBuffer.toString("base64"),

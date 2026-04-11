@@ -15,6 +15,13 @@
       "when": 1774732563252,
       "tag": "0001_lumpy_joystick",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775899184578,
+      "tag": "0002_known_prowler",
+      "breakpoints": true
     }
   ]
 }

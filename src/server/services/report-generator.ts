@@ -46,7 +46,6 @@ export interface GenerateReportInput {
   projectId: string;
   periodStart: string;
   periodEnd: string;
-  password?: string;
   generatedBy: string;
   signatures?: ReportSignature[];
 }
@@ -447,11 +446,7 @@ export async function renderReportHTML(data: Awaited<ReturnType<typeof gatherRep
  * On Vercel: uses @sparticuz/chromium (serverless-compatible).
  * Locally: uses full puppeteer with bundled Chromium.
  */
-export async function htmlToPdf(
-  html: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- will be used for PDF encryption
-  password?: string
-): Promise<Buffer> {
+export async function htmlToPdf(html: string): Promise<Buffer> {
   let browser;
 
   if (process.env.VERCEL) {

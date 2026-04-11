@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { eq, asc, and, sql } from "drizzle-orm";
+import { eq, asc, and, sql, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
 import { tasks } from "@/server/db/schema";
 import { detectAndParse } from "@/server/services/programme-import";
-import { assertProjectAccess } from "../helpers";
+import { assertProjectAccess, assertTaskInProject } from "../helpers";
 import { writeAuditLog } from "@/server/services/audit";
 
 interface FlatTask {
@@ -79,6 +79,9 @@ export const taskRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       const parentId = input.parentTaskId ?? null;
+      if (parentId) {
+        await assertTaskInProject(ctx.db, parentId, input.projectId);
+      }
 
       const [maxResult] = await ctx.db
         .select({ max: sql<number>`COALESCE(MAX(${tasks.sortOrder}), -1)` })
@@ -137,6 +140,29 @@ export const taskRouter = createTRPCRouter({
       if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Task not found" });
       await assertProjectAccess(ctx.db, existing.projectId, ctx.orgId, ctx.userId);
 
+      if (input.parentTaskId !== undefined && input.parentTaskId !== null) {
+        if (input.parentTaskId === input.id) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Task cannot be its own parent" });
+        }
+        await assertTaskInProject(ctx.db, input.parentTaskId, existing.projectId);
+        // Walk ancestors of the proposed parent to detect cycles
+        let cursor: string | null = input.parentTaskId;
+        const seen = new Set<string>();
+        while (cursor) {
+          if (cursor === input.id) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Reparent would create a cycle" });
+          }
+          if (seen.has(cursor)) break;
+          seen.add(cursor);
+          const ancestor: { parentTaskId: string | null } | undefined =
+            await ctx.db.query.tasks.findFirst({
+              where: eq(tasks.id, cursor),
+              columns: { parentTaskId: true },
+            });
+          cursor = ancestor?.parentTaskId ?? null;
+        }
+      }
+
       const { id, ...data } = input;
       const cleaned: Record<string, unknown> = {};
       for (const [key, val] of Object.entries(data)) {
@@ -164,9 +190,11 @@ export const taskRouter = createTRPCRouter({
         await tx
           .update(tasks)
           .set({ parentTaskId: task.parentTaskId, updatedAt: new Date() })
-          .where(eq(tasks.parentTaskId, input.id));
+          .where(and(eq(tasks.parentTaskId, input.id), eq(tasks.projectId, task.projectId)));
 
-        await tx.delete(tasks).where(eq(tasks.id, input.id));
+        await tx
+          .delete(tasks)
+          .where(and(eq(tasks.id, input.id), eq(tasks.projectId, task.projectId)));
         writeAuditLog(ctx.db, { projectId: task.projectId, userId: ctx.userId, action: "delete", entityType: "task", entityId: input.id, metadata: { name: task.name } });
         return { success: true };
       });
@@ -187,8 +215,35 @@ export const taskRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
+
+      // Pre-validate that every referenced id (own + parent) belongs to this project.
+      const referencedIds = new Set<string>();
+      for (const item of input.items) {
+        referencedIds.add(item.id);
+        if (item.parentTaskId) referencedIds.add(item.parentTaskId);
+      }
+      const owned = await ctx.db.query.tasks.findMany({
+        where: and(
+          eq(tasks.projectId, input.projectId),
+          inArray(tasks.id, Array.from(referencedIds))
+        ),
+        columns: { id: true },
+      });
+      if (owned.length !== referencedIds.size) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "One or more tasks do not belong to this project",
+        });
+      }
+
       return ctx.db.transaction(async (tx) => {
         for (const item of input.items) {
+          if (item.parentTaskId === item.id) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Task cannot be its own parent",
+            });
+          }
           await tx
             .update(tasks)
             .set({
@@ -196,7 +251,7 @@ export const taskRouter = createTRPCRouter({
               parentTaskId: item.parentTaskId,
               updatedAt: new Date(),
             })
-            .where(eq(tasks.id, item.id));
+            .where(and(eq(tasks.id, item.id), eq(tasks.projectId, input.projectId)));
         }
         return { success: true };
       });
