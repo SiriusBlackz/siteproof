@@ -28,8 +28,8 @@ export default function ProjectDetailPage() {
     { projectId: params.projectId },
     { enabled: !!params.projectId }
   );
-  const { data: evidenceData } = trpc.evidence.list.useQuery(
-    { projectId: params.projectId, limit: 1 },
+  const { data: evidenceCount } = trpc.evidence.count.useQuery(
+    { projectId: params.projectId },
     { enabled: !!params.projectId }
   );
   const { data: reportsData } = trpc.report.list.useQuery(
@@ -149,7 +149,7 @@ export default function ProjectDetailPage() {
         <Card>
           <CardContent className="pt-4 pb-4">
             <p className="text-sm text-muted-foreground">Evidence</p>
-            <p className="text-2xl font-bold">{evidenceData?.items?.length === 1 && evidenceData?.nextCursor ? "1+" : (evidenceData?.items?.length ?? 0)}</p>
+            <p className="text-2xl font-bold">{evidenceCount?.count ?? 0}</p>
             <p className="text-xs text-muted-foreground mt-1">photos & videos</p>
           </CardContent>
         </Card>

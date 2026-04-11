@@ -151,12 +151,13 @@ export function TaskList({ tasks, onEdit, onDelete, onReorder }: TaskListProps) 
                 </div>
               </div>
 
-              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
                 <Button
                   variant="ghost"
                   size="icon-xs"
                   onClick={() => moveTask(task, "up")}
                   disabled={!canMoveUp(task)}
+                  aria-label={`Move ${task.name} up`}
                 >
                   <ChevronUp className="h-3 w-3" />
                 </Button>
@@ -165,6 +166,7 @@ export function TaskList({ tasks, onEdit, onDelete, onReorder }: TaskListProps) 
                   size="icon-xs"
                   onClick={() => moveTask(task, "down")}
                   disabled={!canMoveDown(task)}
+                  aria-label={`Move ${task.name} down`}
                 >
                   <ChevronDown className="h-3 w-3" />
                 </Button>
@@ -172,6 +174,7 @@ export function TaskList({ tasks, onEdit, onDelete, onReorder }: TaskListProps) 
                   variant="ghost"
                   size="icon-xs"
                   onClick={() => onEdit(task)}
+                  aria-label={`Edit ${task.name}`}
                 >
                   <Pencil className="h-3 w-3" />
                 </Button>
@@ -179,6 +182,7 @@ export function TaskList({ tasks, onEdit, onDelete, onReorder }: TaskListProps) 
                   variant="ghost"
                   size="icon-xs"
                   onClick={() => setDeleteConfirm(task.id)}
+                  aria-label={`Delete ${task.name}`}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>

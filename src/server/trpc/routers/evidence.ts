@@ -138,6 +138,17 @@ export const evidenceRouter = createTRPCRouter({
       return record;
     }),
 
+  count: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
+      const [row] = await ctx.db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(evidence)
+        .where(eq(evidence.projectId, input.projectId));
+      return { count: row?.count ?? 0 };
+    }),
+
   list: protectedProcedure
     .input(
       z.object({
