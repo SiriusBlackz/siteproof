@@ -23,7 +23,7 @@ export function Sidebar() {
     <aside className="hidden md:flex w-64 flex-col border-r bg-muted/30">
       <div className="flex h-14 items-center gap-2 border-b px-4">
         <HardHat className="h-6 w-6 text-primary" />
-        <span className="text-lg font-semibold">SiteProof</span>
+        <span className="text-lg font-semibold">Sitefile</span>
       </div>
       <nav className="flex-1 space-y-1 p-2">
         {navItems.map((item) => {

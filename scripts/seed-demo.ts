@@ -6,17 +6,17 @@ import { organisations, users, projectMembers } from "../src/server/db/schema";
 
 dotenv.config({ path: ".env.local" });
 
-const DEMO_ORG_NAME = "SiteProof Demo Organisation";
+const DEMO_ORG_NAME = "Sitefile Demo Organisation";
 
 const DEMO_USERS = [
   {
     clerkId: "demo_clerk_contractor1",
-    email: "contractor1@demo.siteproof.app",
+    email: "contractor1@demo.sitefile.app",
     name: "Demo Contractor 1",
   },
   {
     clerkId: "demo_clerk_contractor2",
-    email: "contractor2@demo.siteproof.app",
+    email: "contractor2@demo.sitefile.app",
     name: "Demo Contractor 2",
   },
 ];

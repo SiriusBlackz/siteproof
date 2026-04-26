@@ -34,7 +34,7 @@ export function MobileNav() {
         <SheetContent side="left" className="w-64 p-0">
           <div className="flex h-14 items-center gap-2 border-b px-4">
             <HardHat className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">SiteProof</span>
+            <span className="text-lg font-semibold">Sitefile</span>
           </div>
           <nav className="space-y-1 p-2">
             {navItems.map((item) => {
@@ -62,7 +62,7 @@ export function MobileNav() {
       </Sheet>
       <div className="flex items-center gap-2 ml-2">
         <HardHat className="h-5 w-5 text-primary" />
-        <span className="font-semibold">SiteProof</span>
+        <span className="font-semibold">Sitefile</span>
       </div>
       <div className="ml-auto">
         <OfflineQueueIndicator />

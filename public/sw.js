@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = "siteproof-v1";
+const CACHE_NAME = "sitefile-v1";
 const APP_SHELL = [
   "/",
   "/manifest.json",

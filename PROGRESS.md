@@ -1,4 +1,4 @@
-# SiteProof — Progress Log
+# Sitefile (formerly SiteProof) — Progress Log
 
 ## Completed Phases
 
@@ -259,9 +259,50 @@ correctness / architecture pass). Static analysis → runtime walkthrough
 - Anonymous `/api/reports/<id>/pdf` → 401 "Not signed in" ✓
 - `/api/uploads/projects/*/reports/*` → 403 "Use /api/reports/[id]/pdf" ✓
 
+### Phase 8 — Rebrand: SiteProof → Sitefile (in progress, 2026-04-20)
+
+Branch: `rename/sitefile`. Domain `sitefile.app` purchased at Namecheap.
+DNS strategy: **registrar @ Namecheap, DNS delegated to Cloudflare** (so
+`media.sitefile.app` → R2 is a one-click bind in CF when we want it).
+
+#### Brand checks done before purchase
+- Google / LinkedIn / Companies House / trademark — all clean on "Sitefile"
+- `.app` picked over `.com` (aftermarket too expensive at this stage)
+- Considered and rejected: "LogZeroSite" (awkward, ambiguous)
+
+#### Code rename landed on branch (22 edits, 15 files)
+UI brand: `layout.tsx`, `sidebar`, `mobile-nav`, `(dashboard)/page`,
+`(auth)/demo/page`, report templates (`cover-page`, `sign-off`).
+PWA: `manifest.json`, `sw.js` cache bumped to `sitefile-v1` (forces
+client re-cache on deploy), `offline-queue` IndexedDB name.
+Email fallbacks: `current-user`, `clerk` webhook, `seed`, `seed-demo`,
+`demo.ts`. Meta: `package.json` name, smoke script header. Docs:
+`CLAUDE.md`, `PROGRESS.md`. Build passes, 23 routes, zero warnings.
+
+#### Intentionally NOT changed
+- R2 bucket `siteproof-media` — env var only, not user-facing;
+  bucket rename requires full object migration for zero benefit
+- Inngest app `id: "siteproof"` in `src/server/inngest/client.ts` —
+  changing requires re-sync + risks orphaning in-flight jobs
+- Historical deploy URLs / verification logs in this doc
+- `betatest.md` — point-in-time artifact
+- On-disk repo folder `siteproof/` — IDE + Vercel link reference it;
+  defer until brand cutover is stable
+
+#### Remaining rebrand steps (not code)
+1. Add `sitefile.app` as a zone in Cloudflare (Free plan)
+2. Add 2 DNS records in CF: `A @ → 76.76.21.21`, `CNAME www → cname.vercel-dns.com`, **both grey-cloud (proxy OFF)** — orange cloud breaks Vercel cert issuance
+3. Copy the two CF nameservers
+4. At Namecheap: `sitefile.app` → Nameservers → Custom DNS → paste CF NS
+5. Wait for NS propagation (15 min – 24h); CF emails when Active
+6. Vercel dashboard → siteproof project → Domains → add `sitefile.app` + `www.sitefile.app`; Vercel auto-issues Let's Encrypt
+7. Commit branch `rename/sitefile` → merge to main → deploy
+8. Cosmetic dashboard renames: Vercel project name, Clerk application name, Stripe product name
+9. Decide disposition of old `siteproof.app` — recommend 301 redirect in Vercel for 6 months, then let expire
+
 ---
 
-## Current State (2026-04-11)
+## Current State (2026-04-11, brand unchanged as of that deploy)
 
 ### What's Working
 - `npm run build` — zero errors, zero lint warnings, 23 routes
@@ -315,12 +356,12 @@ correctness / architecture pass). Static analysis → runtime walkthrough
 ## What's Outstanding (2026-04-11)
 
 ### Active blockers — your side, no code work needed
-1. **`www.siteproof.app` DNS** — domain is registered with **Namecheap Inc.**
-   (RDAP-confirmed), DNS resolves to `parkingpage.namecheap.com`. Vercel has
-   the alias but no traffic reaches it. Need to log into Namecheap and
-   either (a) add `A @ → 76.76.21.21` + `CNAME www → cname.vercel-dns.com`,
-   or (b) delegate nameservers to Cloudflare, or (c) transfer to Cloudflare
-   Registrar.
+1. **Brand rename → `sitefile.app`** — domain purchased at Namecheap,
+   DNS delegated to Cloudflare (registrar: Namecheap, DNS: Cloudflare).
+   Code rename landed on branch `rename/sitefile`. Still pending:
+   Cloudflare NS propagation, Vercel domain binding, Clerk / Stripe /
+   Vercel dashboard cosmetic rename. `siteproof-media` R2 bucket
+   intentionally kept (env var only, not user-facing).
 2. **`STRIPE_WEBHOOK_SECRET`** — handler is fully wired up + idempotent
    (mig 0004), waiting on a real Stripe account + secret.
 3. **Real Clerk validation** — `DEMO_MODE` is OFF in Vercel production,

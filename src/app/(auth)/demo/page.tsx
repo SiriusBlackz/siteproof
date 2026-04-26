@@ -32,7 +32,7 @@ export default function DemoPage() {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600">
             <HardHat className="h-6 w-6 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">SiteProof Demo</h1>
+          <h1 className="text-2xl font-bold text-white">Sitefile Demo</h1>
           <p className="text-zinc-400">
             Select your testing account to get started
           </p>

@@ -57,7 +57,7 @@ export async function resolveCurrentUser(headers: Headers): Promise<ResolvedUser
           dbUser = await ensureUser(db, clerkId, {
             email:
               clerk.emailAddresses[0]?.emailAddress ??
-              `${clerkId}@siteproof.app`,
+              `${clerkId}@sitefile.app`,
             name:
               [clerk.firstName, clerk.lastName].filter(Boolean).join(" ") ||
               (clerk.emailAddresses[0]?.emailAddress ?? "User"),

@@ -1,5 +1,5 @@
 /**
- * End-to-end smoke test for the SiteProof MVP core flow.
+ * End-to-end smoke test for the Sitefile MVP core flow.
  *
  * What it checks:
  *   1. Demo seed is present (fail early with a clear message if not)

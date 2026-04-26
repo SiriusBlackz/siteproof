@@ -1,6 +1,6 @@
 {
-  "name": "SiteProof",
-  "short_name": "SiteProof",
+  "name": "Sitefile",
+  "short_name": "Sitefile",
   "description": "Contractor Progress Evidence Tracker — capture, link, report.",
   "start_url": "/",
   "display": "standalone",

@@ -23,7 +23,7 @@ async function main() {
     .values({
       orgId: org.id,
       clerkId: "seed_user_001",
-      email: "demo@siteproof.app",
+      email: "demo@sitefile.app",
       name: "Demo User",
       role: "admin",
     })

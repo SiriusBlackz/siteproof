@@ -25,12 +25,12 @@ export interface DemoUser {
 const DEMO_USERS: Record<string, DemoUser> = {
   "contractor-1": {
     clerkId: "demo_clerk_contractor1",
-    email: "contractor1@demo.siteproof.app",
+    email: "contractor1@demo.sitefile.app",
     name: "Demo Contractor 1",
   },
   "contractor-2": {
     clerkId: "demo_clerk_contractor2",
-    email: "contractor2@demo.siteproof.app",
+    email: "contractor2@demo.sitefile.app",
     name: "Demo Contractor 2",
   },
 };

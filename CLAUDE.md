@@ -1,10 +1,12 @@
-# SiteProof — CLAUDE.md
+# Sitefile — CLAUDE.md
 
 > This file is the project instruction spec. Read it fully before starting any work.
+>
+> **Note on the repo directory name:** the folder is still `siteproof/` — renaming the working tree is a larger operation (IDE / Vercel link / scripts all reference the path) and happens after the brand cutover is stable. The product is "Sitefile"; the local path is historical.
 
 ## Project overview
 
-SiteProof is a **Contractor Progress Evidence Tracker** — a web app where construction contractors upload photos/videos from site, AI-links them to programme tasks, and generates branded, password-protected PDF progress reports.
+Sitefile is a **Contractor Progress Evidence Tracker** — a web app where construction contractors upload photos/videos from site, AI-links them to programme tasks, and generates branded, password-protected PDF progress reports.
 
 **Workflow:** Capture (phone) → Link (AI-assisted) → Report (laptop)
 **Pricing:** £99 per project / month
@@ -200,7 +202,7 @@ CREATE TABLE audit_log (
 ## Project structure
 
 ```
-siteproof/
+sitefile/  (on-disk path is still `siteproof/` — rename deferred)
 ├── CLAUDE.md                       ← this file
 ├── .env.example
 ├── .env.local
@@ -423,8 +425,8 @@ DATABASE_URL=postgresql://postgres:...@db.xxx.supabase.co:5432/postgres
 R2_ACCOUNT_ID=...
 R2_ACCESS_KEY_ID=...
 R2_SECRET_ACCESS_KEY=...
-R2_BUCKET_NAME=siteproof-media
-R2_PUBLIC_URL=https://media.siteproof.app
+R2_BUCKET_NAME=sitefile-media
+R2_PUBLIC_URL=https://media.sitefile.app
 ANTHROPIC_API_KEY=sk-ant-...
 INNGEST_EVENT_KEY=...
 INNGEST_SIGNING_KEY=...

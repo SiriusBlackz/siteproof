@@ -3,7 +3,7 @@
  * Stores photos taken without network and auto-uploads when online.
  */
 
-const DB_NAME = "siteproof-offline";
+const DB_NAME = "sitefile-offline";
 const DB_VERSION = 1;
 const STORE_NAME = "capture-queue";
 

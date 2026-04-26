@@ -107,7 +107,7 @@ export default function DashboardPage() {
         <Card className="border-dashed border-2">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <FolderKanban className="h-12 w-12 text-muted-foreground/40 mb-4" />
-            <h2 className="text-lg font-semibold">Welcome to SiteProof</h2>
+            <h2 className="text-lg font-semibold">Welcome to Sitefile</h2>
             <p className="text-sm text-muted-foreground max-w-md mt-1 mb-6">
               Get started by creating your first project. Upload site photos, link them to programme tasks, and generate professional progress reports.
             </p>

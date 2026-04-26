@@ -16,13 +16,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SiteProof",
+  title: "Sitefile",
   description: "Contractor Progress Evidence Tracker",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "SiteProof",
+    title: "Sitefile",
   },
   other: {
     "mobile-web-app-capable": "yes",

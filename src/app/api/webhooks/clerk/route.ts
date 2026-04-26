@@ -44,7 +44,7 @@ export async function POST(req: Request) {
   try {
     const { type, data } = event;
     const clerkId = data.id;
-    const email = data.email_addresses[0]?.email_address ?? `${clerkId}@siteproof.app`;
+    const email = data.email_addresses[0]?.email_address ?? `${clerkId}@sitefile.app`;
     const name = [data.first_name, data.last_name].filter(Boolean).join(" ") || email;
 
     if (type === "user.created") {
