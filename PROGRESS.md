@@ -289,16 +289,53 @@ Email fallbacks: `current-user`, `clerk` webhook, `seed`, `seed-demo`,
 - On-disk repo folder `siteproof/` — IDE + Vercel link reference it;
   defer until brand cutover is stable
 
-#### Remaining rebrand steps (not code)
-1. Add `sitefile.app` as a zone in Cloudflare (Free plan)
-2. Add 2 DNS records in CF: `A @ → 76.76.21.21`, `CNAME www → cname.vercel-dns.com`, **both grey-cloud (proxy OFF)** — orange cloud breaks Vercel cert issuance
-3. Copy the two CF nameservers
-4. At Namecheap: `sitefile.app` → Nameservers → Custom DNS → paste CF NS
-5. Wait for NS propagation (15 min – 24h); CF emails when Active
-6. Vercel dashboard → siteproof project → Domains → add `sitefile.app` + `www.sitefile.app`; Vercel auto-issues Let's Encrypt
-7. Commit branch `rename/sitefile` → merge to main → deploy
-8. Cosmetic dashboard renames: Vercel project name, Clerk application name, Stripe product name
-9. Decide disposition of old `siteproof.app` — recommend 301 redirect in Vercel for 6 months, then let expire
+#### Rebrand cutover — COMPLETE 2026-04-26
+
+All steps executed and verified live:
+1. ✅ `sitefile.app` added as Cloudflare zone (Free plan)
+2. ✅ DNS records added (A `@ → 76.76.21.21`, CNAME `www → cname.vercel-dns.com`, both grey-cloud)
+3. ✅ Cloudflare assigned NS: `gigi.ns.cloudflare.com` + `stanley.ns.cloudflare.com`
+4. ✅ Namecheap nameservers switched to Custom DNS → CF
+5. ✅ NS propagation completed quickly (within minutes)
+6. ✅ Vercel domain bound: `sitefile.app` (apex 307→www) + `www.sitefile.app` primary
+7. ✅ Branch `rename/sitefile` (commit `70579cb`) merged to main, pushed to origin (13-commit batch)
+8. ✅ Production deployed `dpl_BaLdhL7p8yjv5caZKCT8EVg68nLy` — `<title>Sitefile</title>` confirmed live
+9. ✅ Cosmetic dashboard renames done (Vercel project, Clerk app name, Stripe product per user)
+10. ✅ Old `siteproof.app` removed from Vercel Domains (dead entry — DNS never reached Vercel anyway)
+
+### Phase 9 — Pre-beta validation (in progress, paused 2026-04-27)
+
+Working through the remaining two pre-beta blockers (Stripe + Clerk E2E).
+Hit a real-world infrastructure issue first.
+
+#### Supabase free-tier auto-pause — CRITICAL gotcha discovered + fixed
+- DB went `INACTIVE` (Supabase free tier auto-pauses after ~7 days of inactivity)
+- Symptom: all DB connections fail with `PostgresError: Tenant or user not found`
+- Same error appears in `betatest.md` historical findings — was misattributed to demo seed back then
+- **Restored via Supabase MCP** (`mcp__claude_ai_Supabase__restore_project` → free unpause, ~30s)
+- Status now: `ACTIVE_HEALTHY`
+- **MUST add keep-alive monitoring before opening to beta** — Vercel Cron pinging DB once a day prevents repeat. Free tier limit is 500 invocations/mo so daily ping is trivial.
+- Alternative: Supabase Pro at ~£25/mo permanently disables auto-pause.
+
+#### Clerk E2E test — IN PROGRESS, blocked on diagnosis
+- Production using `pk_test_*` (Development Clerk instance `proud-bluejay-8`).
+  Functions correctly for invite-only beta but **must swap to a Production Clerk instance with `pk_live_*` before real public launch.**
+- Clerk restrictions toggled OFF temporarily (under **Configure → Protect → Restrictions**, NOT under "User & Authentication" — Clerk dashboard reorganised)
+- User signed up with `derian.jackson@stanstedairport.com`
+- **DB query confirms NO user row was created** — only the 4 pre-existing rows (2 demo, 1 seed, 1 old test from 2026-03-27)
+- Cause not yet diagnosed. Hypotheses:
+  1. Clerk webhook signature mismatch (CLERK_WEBHOOK_SECRET stale — set 26d ago)
+  2. Webhook secret correct but webhook endpoint URL still pointed at old siteproof.app domain
+  3. ensureUser lazy fallback never fired because user didn't navigate to a tRPC-calling page after sign-in
+  4. Sign-in redirect went somewhere unexpected
+- **Need from user on resume (3 questions):**
+  1. Sign UP or sign IN today? (Yesterday's signup attempt was during DB outage — Clerk would have created the auth-side account but webhook would have failed)
+  2. What URL did the browser show after submit?
+  3. Did the page show app content (sidebar, "Welcome to Sitefile") or Clerk hosted page / blank / 500?
+
+#### Helper script added (uncommitted)
+- `scripts/watch-users.ts` — queries DB for recent users + org + memberships + audit-log for a given email. Loads from `.env.production-snapshot` (created by `vercel env pull --environment=production`). Run as `npx tsx scripts/watch-users.ts <email>`.
+- Useful for any future Clerk/auth debugging. Should be committed.
 
 ---
 
