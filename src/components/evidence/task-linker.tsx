@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface TaskSuggestion {
@@ -114,8 +114,9 @@ export function TaskLinker({
 
       {activeSuggestions && activeSuggestions.length > 0 && (
         <div className="space-y-1">
-          <p className="text-xs font-medium text-muted-foreground">
-            Suggestions
+          <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <Sparkles className="h-3 w-3" />
+            AI suggestions
           </p>
           <div className="space-y-1">
             {activeSuggestions.map((s) => (

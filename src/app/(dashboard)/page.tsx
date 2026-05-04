@@ -226,16 +226,6 @@ export default function DashboardPage() {
                 <FolderKanban className="mr-2 h-4 w-4" />
                 View Projects
               </Link>
-              <Link
-                href="/projects/new"
-                className={cn(
-                  buttonVariants({ variant: "outline" }),
-                  "w-full justify-start"
-                )}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New Project
-              </Link>
             </CardContent>
           </Card>
 

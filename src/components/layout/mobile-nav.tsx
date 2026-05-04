@@ -10,6 +10,7 @@ import {
   FolderKanban,
   HardHat,
   Menu,
+  UserRound,
 } from "lucide-react";
 import { useState } from "react";
 import { OfflineQueueIndicator } from "./offline-queue-indicator";
@@ -19,6 +20,7 @@ import { UserMenu } from "./user-menu";
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/account", label: "Account", icon: UserRound },
 ];
 
 export function MobileNav() {

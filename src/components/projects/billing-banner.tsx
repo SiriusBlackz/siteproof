@@ -2,19 +2,29 @@
 
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { AlertCircle, Clock, XCircle } from "lucide-react";
 
-const STATUS_CONFIG: Record<string, { message: string; variant: string }> = {
+const STATUS_CONFIG: Record<
+  string,
+  { message: string; variant: string; icon: typeof AlertCircle }
+> = {
   payment_failed: {
     message: "Payment failed for this project. Please update your billing details.",
-    variant: "bg-red-50 border-red-200 text-red-800",
+    variant:
+      "border-l-4 border-red-600 bg-red-100/60 text-red-900 dark:border-red-500 dark:bg-red-950/30 dark:text-red-200",
+    icon: AlertCircle,
   },
   pending_payment: {
     message: "This project is awaiting payment. Complete checkout to activate it.",
-    variant: "bg-amber-50 border-amber-200 text-amber-800",
+    variant:
+      "border-l-4 border-amber-500 bg-amber-100/50 text-amber-900 dark:border-amber-400 dark:bg-amber-950/30 dark:text-amber-200",
+    icon: Clock,
   },
   cancelled: {
     message: "The subscription for this project has been cancelled.",
-    variant: "bg-gray-50 border-gray-200 text-gray-800",
+    variant:
+      "border-l-4 border-gray-400 bg-gray-100/60 text-gray-800 dark:border-gray-500 dark:bg-gray-900/40 dark:text-gray-200",
+    icon: XCircle,
   },
 };
 
@@ -31,10 +41,15 @@ export function BillingBanner({ status }: { status: string | null }) {
 
   if (!config) return null;
 
+  const Icon = config.icon;
+
   return (
-    <div className={`rounded-lg border p-4 ${config.variant}`}>
+    <div className={`rounded-md border p-4 ${config.variant}`}>
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm font-medium">{config.message}</p>
+        <div className="flex items-center gap-3">
+          <Icon className="h-5 w-5 shrink-0" />
+          <p className="text-sm font-medium">{config.message}</p>
+        </div>
         {status === "payment_failed" && (
           <button
             onClick={() => portalSession.mutate()}

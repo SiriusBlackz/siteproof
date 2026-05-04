@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   FolderKanban,
   HardHat,
+  UserRound,
 } from "lucide-react";
 import { OfflineQueueIndicator } from "./offline-queue-indicator";
 import { ThemeToggle } from "./theme-toggle";
@@ -16,6 +17,7 @@ import { UserMenu } from "./user-menu";
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/account", label: "Account", icon: UserRound },
 ];
 
 export function Sidebar() {

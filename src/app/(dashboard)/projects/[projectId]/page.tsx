@@ -5,6 +5,8 @@ import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Settings,
   ListTodo,
@@ -60,6 +62,13 @@ export default function ProjectDetailPage() {
   const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const totalReports = reportsData?.length ?? 0;
 
+  const sortedReports = [...(reportsData ?? [])].sort((a, b) => {
+    const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bt - at;
+  });
+  const latestReport = sortedReports[0];
+
   const navSections = [
     {
       label: "Work",
@@ -73,7 +82,6 @@ export default function ProjectDetailPage() {
       label: "Intelligence",
       items: [
         { href: `/projects/${project.id}/zones`, label: "GPS Zones", icon: Map, description: "Auto-link by location" },
-        { href: `/projects/${project.id}/reports`, label: "Reports", icon: FileText, description: `${totalReports} generated` },
       ],
     },
     {
@@ -153,6 +161,64 @@ export default function ProjectDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Reports hero — primary deliverable */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-5">
+          <div className="flex items-start gap-4 min-w-0">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-primary/10">
+              <FileText className="h-6 w-6 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-semibold">
+                  {latestReport
+                    ? `Report #${latestReport.reportNumber}`
+                    : "No reports yet"}
+                </p>
+                {latestReport && (
+                  <Badge
+                    variant="secondary"
+                    className={
+                      latestReport.status === "completed"
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : latestReport.status === "generating"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                        : latestReport.status === "failed"
+                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                        : ""
+                    }
+                  >
+                    {latestReport.status ?? "unknown"}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                {latestReport
+                  ? `${latestReport.periodStart} — ${latestReport.periodEnd}`
+                  : "Generate a branded PDF progress report for your client."}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            {totalReports > 0 && (
+              <Link
+                href={`/projects/${project.id}/reports`}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                View all
+              </Link>
+            )}
+            <Link
+              href={`/projects/${project.id}/reports`}
+              className={cn(buttonVariants({ size: "sm" }), "gap-1")}
+            >
+              <FileText className="h-4 w-4" />
+              {latestReport ? "Generate report" : "Generate first report"}
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Navigation Sections */}
       {navSections.map((section) => (
