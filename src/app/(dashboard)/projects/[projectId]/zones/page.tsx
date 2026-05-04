@@ -21,10 +21,11 @@ const ZoneMapEditor = dynamic(
   }
 );
 
+const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
 const hasMapboxToken =
   typeof window !== "undefined" &&
-  process.env.NEXT_PUBLIC_MAPBOX_TOKEN &&
-  process.env.NEXT_PUBLIC_MAPBOX_TOKEN !== "PLACEHOLDER";
+  mapboxToken.length > 0 &&
+  !/placeholder/i.test(mapboxToken);
 
 export default function ZonesPage() {
   const { projectId } = useParams<{ projectId: string }>();

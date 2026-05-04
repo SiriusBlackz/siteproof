@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, UserRound } from "lucide-react";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { UserButton, useAuth } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -14,7 +15,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const isClerkActive = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+const isClerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
+function hasDemoCookie() {
+  if (typeof document === "undefined") return false;
+  return document.cookie.split(";").some((c) => c.trim().startsWith("demo_user="));
+}
 
 function DemoUserMenu() {
   const router = useRouter();
@@ -29,7 +35,7 @@ function DemoUserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger>
         <span
-          className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+          className={cn(buttonVariants({ variant: "outline", size: "icon" }))}
           aria-label="Account menu"
         >
           <UserRound className="h-4 w-4" />
@@ -48,8 +54,8 @@ function DemoUserMenu() {
 }
 
 function ClerkUserMenu() {
-  const { isLoaded } = useUser();
-  if (!isLoaded) return null;
+  const { isLoaded, isSignedIn } = useAuth();
+  if (!isLoaded || !isSignedIn) return null;
   return (
     <UserButton
       appearance={{
@@ -60,5 +66,13 @@ function ClerkUserMenu() {
 }
 
 export function UserMenu() {
-  return isClerkActive ? <ClerkUserMenu /> : <DemoUserMenu />;
+  const [isDemo, setIsDemo] = useState(false);
+
+  useEffect(() => {
+    setIsDemo(hasDemoCookie());
+  }, []);
+
+  if (isDemo) return <DemoUserMenu />;
+  if (isClerkConfigured) return <ClerkUserMenu />;
+  return null;
 }

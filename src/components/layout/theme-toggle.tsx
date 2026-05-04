@@ -19,7 +19,7 @@ export function ThemeToggle() {
       <DropdownMenuTrigger>
         <span
           className={cn(
-            buttonVariants({ variant: "ghost", size: "icon" }),
+            buttonVariants({ variant: "outline", size: "icon" }),
             "relative",
           )}
           aria-label="Toggle theme"

@@ -26,3 +26,15 @@ export function getProjectStatusLabel(status: string | null | undefined): string
 export function getProjectStatusColor(status: string | null | undefined): string {
   return PROJECT_STATUS_COLORS[status ?? "active"] ?? PROJECT_STATUS_COLORS.active;
 }
+
+export const TASK_STATUS_LABELS: Record<string, string> = {
+  not_started: "Not Started",
+  in_progress: "In Progress",
+  completed: "Completed",
+  delayed: "Delayed",
+};
+
+export function getTaskStatusLabel(status: string | null | undefined): string {
+  if (!status) return TASK_STATUS_LABELS.not_started;
+  return TASK_STATUS_LABELS[status] ?? status;
+}

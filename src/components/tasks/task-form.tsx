@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getTaskStatusLabel } from "@/lib/project-status";
 import {
   Dialog,
   DialogContent,
@@ -177,7 +178,7 @@ export function TaskFormDialog({
                 }
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <span>{getTaskStatusLabel(watch("status"))}</span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="not_started">Not Started</SelectItem>
