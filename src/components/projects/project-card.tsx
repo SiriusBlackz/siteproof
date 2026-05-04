@@ -5,12 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Building2 } from "lucide-react";
 import type { Project } from "@/types/project";
-
-const statusColors: Record<string, string> = {
-  active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  archived: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
-  completed: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-};
+import { getProjectStatusColor, getProjectStatusLabel } from "@/lib/project-status";
 
 export function ProjectCard({ project }: { project: Project }) {
   return (
@@ -21,9 +16,9 @@ export function ProjectCard({ project }: { project: Project }) {
             <CardTitle className="text-base">{project.name}</CardTitle>
             <Badge
               variant="secondary"
-              className={statusColors[project.status ?? "active"]}
+              className={getProjectStatusColor(project.status)}
             >
-              {project.status ?? "active"}
+              {getProjectStatusLabel(project.status)}
             </Badge>
           </div>
           {project.reference && (

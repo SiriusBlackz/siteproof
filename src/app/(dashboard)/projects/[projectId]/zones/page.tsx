@@ -41,11 +41,23 @@ export default function ZonesPage() {
               Mapbox Not Configured
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              To use GPS zones, set your <code>NEXT_PUBLIC_MAPBOX_TOKEN</code>{" "}
-              environment variable in <code>.env.local</code> and restart the
-              dev server.
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              GPS zones use Mapbox to draw polygons on a satellite map. To
+              enable, set <code>NEXT_PUBLIC_MAPBOX_TOKEN</code> in{" "}
+              <code>.env.local</code> and restart the dev server.
+            </p>
+            <p>
+              Free Mapbox tokens are available at{" "}
+              <a
+                href="https://account.mapbox.com/auth/signup/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground underline underline-offset-2"
+              >
+                account.mapbox.com
+              </a>
+              .
             </p>
           </CardContent>
         </Card>

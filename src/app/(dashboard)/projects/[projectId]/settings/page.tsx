@@ -7,6 +7,7 @@ import { ProjectForm, type ProjectFormValues } from "@/components/projects/proje
 import { toast } from "sonner";
 import { BillingBanner } from "@/components/projects/billing-banner";
 import { ProjectBreadcrumb } from "@/components/layout/breadcrumb";
+import { getProjectStatusLabel } from "@/lib/project-status";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,14 +104,6 @@ export default function ProjectSettingsPage() {
   if (!project) {
     return <p className="text-muted-foreground">Project not found.</p>;
   }
-
-  const statusLabel: Record<string, string> = {
-    active: "Active",
-    pending_payment: "Awaiting Payment",
-    payment_failed: "Payment Failed",
-    cancelled: "Cancelled",
-    archived: "Archived",
-  };
 
   const memberUserIds = new Set(members.map((m) => m.userId));
   const availableUsers = orgUsers.filter((u) => !memberUserIds.has(u.id));
@@ -243,7 +236,7 @@ export default function ProjectSettingsPage() {
             <div className="text-sm">
               <span className="text-muted-foreground">Status: </span>
               <span className="font-medium">
-                {statusLabel[project.status ?? "active"] ?? project.status}
+                {getProjectStatusLabel(project.status)}
               </span>
             </div>
             {project.stripeSubscriptionId && (

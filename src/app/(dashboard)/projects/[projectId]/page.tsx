@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { BillingBanner } from "@/components/projects/billing-banner";
+import { getProjectStatusColor, getProjectStatusLabel } from "@/lib/project-status";
 
 export default function ProjectDetailPage() {
   const params = useParams<{ projectId: string }>();
@@ -53,15 +54,6 @@ export default function ProjectDetailPage() {
   if (!project) {
     return <p className="text-muted-foreground">Project not found.</p>;
   }
-
-  const statusColors: Record<string, string> = {
-    active: "bg-green-100 text-green-800",
-    archived: "bg-gray-100 text-gray-800",
-    completed: "bg-blue-100 text-blue-800",
-    pending_payment: "bg-amber-100 text-amber-800",
-    payment_failed: "bg-red-100 text-red-800",
-    cancelled: "bg-gray-100 text-gray-800",
-  };
 
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter((t) => t.status === "completed").length;
@@ -103,9 +95,9 @@ export default function ProjectDetailPage() {
           <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
           <Badge
             variant="secondary"
-            className={statusColors[project.status ?? "active"]}
+            className={getProjectStatusColor(project.status)}
           >
-            {project.status}
+            {getProjectStatusLabel(project.status)}
           </Badge>
         </div>
         <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
@@ -126,7 +118,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Progress Stats */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="pt-4 pb-4">
             <p className="text-sm text-muted-foreground">Progress</p>

@@ -41,9 +41,13 @@ function CaptureContent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const mountedRef = useRef(true);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    };
   }, []);
 
   const [facingMode, setFacingMode] = useState<"environment" | "user">(
@@ -135,9 +139,13 @@ function CaptureContent() {
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
 
-    // Flash animation
+    // Flash animation — clear any pending hide so rapid taps still flash
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     setCaptureFlash(true);
-    setTimeout(() => setCaptureFlash(false), 150);
+    flashTimerRef.current = setTimeout(() => {
+      setCaptureFlash(false);
+      flashTimerRef.current = null;
+    }, 200);
 
     // Vibrate if available
     navigator.vibrate?.(50);
@@ -214,9 +222,9 @@ function CaptureContent() {
           <Button
             variant="outline"
             className="mt-4"
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/projects")}
           >
-            Go to Dashboard
+            Go to Projects
           </Button>
         </div>
       </div>

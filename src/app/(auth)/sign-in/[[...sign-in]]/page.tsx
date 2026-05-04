@@ -9,8 +9,10 @@ export default async function SignInPage() {
   const { SignIn } = await import("@clerk/nextjs");
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <SignIn />
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <SignIn />
+      </div>
     </div>
   );
 }

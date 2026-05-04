@@ -1,5 +1,6 @@
 "use client";
 
+import { ImageIcon } from "lucide-react";
 import { EvidenceCard, type EvidenceItem } from "./evidence-card";
 
 interface EvidenceGridProps {
@@ -13,7 +14,12 @@ export function EvidenceGrid({ items, onItemClick, selectedIds, onToggleSelect }
   if (items.length === 0) {
     return (
       <div className="py-12 text-center text-muted-foreground">
-        No evidence found. Upload photos or videos to get started.
+        <ImageIcon className="mx-auto mb-3 h-8 w-8" />
+        <p>No evidence yet.</p>
+        <p className="text-sm mt-1">
+          Click <span className="font-medium text-foreground">Upload</span> above
+          to add photos or videos.
+        </p>
       </div>
     );
   }
