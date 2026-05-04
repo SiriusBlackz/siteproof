@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { OfflineQueueIndicator } from "./offline-queue-indicator";
+import { ThemeToggle } from "./theme-toggle";
+import { UserMenu } from "./user-menu";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -64,8 +66,10 @@ export function MobileNav() {
         <HardHat className="h-5 w-5 text-primary" />
         <span className="font-semibold">Sitefile</span>
       </div>
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-2">
         <OfflineQueueIndicator />
+        <ThemeToggle />
+        <UserMenu />
       </div>
     </div>
   );

@@ -10,6 +10,8 @@ import {
   HardHat,
 } from "lucide-react";
 import { OfflineQueueIndicator } from "./offline-queue-indicator";
+import { ThemeToggle } from "./theme-toggle";
+import { UserMenu } from "./user-menu";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -46,8 +48,12 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="border-t p-3">
+      <div className="border-t p-3 flex items-center justify-between gap-2">
         <OfflineQueueIndicator />
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <UserMenu />
+        </div>
       </div>
     </aside>
   );
