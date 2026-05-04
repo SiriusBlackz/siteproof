@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { CommandPalette } from "@/components/layout/command-palette";
 import { isDemoMode } from "@/lib/demo";
 
 export default async function DashboardLayout({
@@ -29,6 +30,7 @@ export default async function DashboardLayout({
         <MobileNav />
         <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
+      <CommandPalette />
     </div>
   );
 }
