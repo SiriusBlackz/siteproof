@@ -16,6 +16,7 @@ import { useState } from "react";
 import { OfflineQueueIndicator } from "./offline-queue-indicator";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
+import { CaptureLauncher } from "@/components/capture/capture-launcher";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -39,6 +40,9 @@ export function MobileNav() {
           <div className="flex h-14 items-center gap-2 border-b px-4">
             <HardHat className="h-6 w-6 text-primary" />
             <span className="text-lg font-semibold">Sitefile</span>
+          </div>
+          <div className="px-2 pt-2">
+            <CaptureLauncher variant="primary" onNavigated={() => setOpen(false)} />
           </div>
           <nav className="space-y-1 p-2">
             {navItems.map((item) => {
@@ -68,7 +72,8 @@ export function MobileNav() {
         <HardHat className="h-5 w-5 text-primary" />
         <span className="font-semibold">Sitefile</span>
       </div>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1">
+        <CaptureLauncher variant="icon" />
         <OfflineQueueIndicator />
         <ThemeToggle />
         <UserMenu />
