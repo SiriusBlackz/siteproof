@@ -336,6 +336,149 @@ Hit a real-world infrastructure issue first.
 #### Helper script added (uncommitted)
 - `scripts/watch-users.ts` — queries DB for recent users + org + memberships + audit-log for a given email. Loads from `.env.production-snapshot` (created by `vercel env pull --environment=production`). Run as `npx tsx scripts/watch-users.ts <email>`.
 - Useful for any future Clerk/auth debugging. Should be committed.
+- **Update 2026-05-04:** committed in `c46eb2c`. The "uncommitted" note was stale.
+
+### Phase 10 — UX upgrade pass (2026-05-04 → 2026-05-05) ✅
+
+Triggered by a real-browser E2E walkthrough using `agent-browser` against
+local dev with `DEMO_MODE=true`. Bug findings shipped first, then a
+three-tier UX upgrade. Five auto-deploys landed across the session
+(`1b6a89e`, `f61eb34`, `710b29c`, `e91b16a`, plus the webhook test
+commits). All live on `www.sitefile.app`.
+
+#### Bug fixes from E2E (`1b6a89e`)
+- **Dashboard at `/` was unreachable** — root `src/app/page.tsx`
+  redirected authenticated users to `/projects`, bypassing
+  `(dashboard)/page.tsx` (319 lines of stats + activity feed). The
+  sidebar's "Dashboard" link silently went to Projects. Fix: deleted
+  the root redirector; `(dashboard)/layout.tsx` already handles
+  auth-gating.
+- **UserMenu took the Clerk path in demo mode** — static
+  `Boolean(NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)` check rendered Clerk's
+  `<UserButton />` (which drops an empty placeholder when no Clerk
+  session) instead of the demo dropdown. Fix: runtime cookie check
+  via `useEffect`.
+- **Mapbox `pk.PLACEHOLDER` not detected** — `!== "PLACEHOLDER"` only
+  caught the literal string. Switched to case-insensitive
+  `/placeholder/i` regex.
+- **Task form Status select showed raw `not_started`** — Base UI
+  `Select.Value` displays the value, not the SelectItem's children.
+  Extended `lib/project-status.ts` with `TASK_STATUS_LABELS` +
+  `getTaskStatusLabel`; rendered the label explicitly in the trigger.
+- **Theme toggle invisible against dark sidebar** — switched ghost
+  variant to outline.
+
+#### Tier 1 — quick UX wins (`f61eb34`)
+- **Reports promoted to hero card** on project detail. Lifted out of
+  the "Intelligence" nav group into a dedicated card above the work
+  sections, showing latest report number + status badge + period, with
+  a primary "Generate report" CTA. Reports is the £99/mo deliverable;
+  it should be unmissable.
+- **Dedupe "New Project"** — removed the duplicate from the dashboard
+  Quick Actions card. Header CTA stays as the single entry.
+- **BillingBanner visual weight** — `payment_failed` swapped from soft
+  pastel to `border-l-4` red with an `AlertCircle` icon. Same border
+  treatment for `pending_payment` and `cancelled` for consistency.
+- **Account page + sidebar shortcut** — new
+  `(dashboard)/account/page.tsx` rendering Clerk `<UserProfile />` in
+  Clerk mode and a "Demo session" / "Switch user" card in demo mode.
+  Sidebar + mobile nav now have an "Account" link.
+- **AI suggestions header** — renamed the TaskLinker "Suggestions"
+  section to "AI suggestions" with a Sparkles icon. The heuristic
+  linker was already well-rendered; the title now signals it's the
+  product's actual differentiator.
+
+#### Tier 2 — IA tightening + onboarding (`710b29c`)
+- **Global `+ Capture` launcher** — new
+  `src/components/capture/capture-launcher.tsx` (icon + primary
+  variants). Wired into the sidebar (primary button above nav) and
+  mobile-nav (icon in top bar + primary button at top of menu sheet).
+  Smart routing: 0 projects → `/projects/new`; 1 active project → skip
+  picker; many → picker dialog filtered to active projects only.
+  Closes the discoverability gap where capture was reachable only via
+  a specific project's overview link.
+- **Project detail page tightening** — replaced the three-section
+  navSections grid (5–7 cards) with two zones: "Work" (3 prominent
+  cards: Capture, Tasks, Evidence) and "More" (3 compact horizontal
+  pills: GPS Zones, Audit Log, Settings) below a thin separator. Same
+  destinations, half the visual real estate, clearer "do work" vs
+  "configure" hierarchy.
+- **Post-create onboarding nudges** — new
+  `src/components/projects/next-step-banner.tsx` rendered above the
+  project header. Picks the next workflow step from counts:
+  `tasks=0 → "Start with your programme"`, `tasks>0 evidence=0 → "Capture
+  site evidence"`. Reports nudge omitted (Tier 1.2 hero already covers
+  it). Per-project sessionStorage dismissal.
+
+#### Tier 3 — strategic helpers (`e91b16a`)
+- **⌘K command palette** — new
+  `src/components/layout/command-palette.tsx` mounted globally in
+  `(dashboard)/layout.tsx`. ⌘K / Ctrl+K opens; Esc closes. Items:
+  Dashboard / Projects / Account / New project / project list (jump
+  to project) / "Capture for X" actions for every active project.
+  Filterable by name, reference, client. Sidebar gets a small "Press
+  ⌘K to search" hint.
+- **PWA install banner** — new
+  `src/components/layout/pwa-install-banner.tsx` on the dashboard.
+  Hooks into the existing `usePWA()` `canInstall` + `promptInstall`
+  path that was capturing `beforeinstallprompt` but never surfaced
+  in the UI. Click "Install" triggers the native prompt;
+  localStorage + sessionStorage flags prevent re-pestering.
+
+#### GitHub → Vercel webhook saga
+- After the GitHub repo rename `siriusblackz/siteproof` → `SiriusBlackz/sitefile`,
+  the Vercel auto-deploy webhook silently broke. Pushes succeeded
+  via redirect but no builds fired.
+- **Two reconnect attempts** in Vercel Settings → Git. First reconnect
+  appeared to save but `vercel project inspect` showed no Git section
+  and a test commit didn't deploy. Second reconnect (after explicitly
+  picking the renamed repo + saving) took. Verified working with
+  empty test commits; `sitefile-git-main-…` alias appeared on
+  subsequent auto-deploys (only generated by Git-triggered builds).
+- Local origin URL also updated to match
+  (`git remote set-url origin https://github.com/SiriusBlackz/sitefile.git`).
+
+#### Local dev gotcha — PWA service worker
+- The PWA service worker (`public/sw.js`, network-first nav,
+  cache-first static) runs in dev too and aggressively caches
+  `/_next/static/chunks/` JS bundles. After a code change, even with
+  `.next/` cleared and dev restarted, the SW served stale JS for the
+  user-menu component for ~15 minutes before diagnosis.
+- Fix used during agent-browser E2E:
+  ```
+  agent-browser eval 'await Promise.all([
+    ...(await navigator.serviceWorker.getRegistrations()).map(r=>r.unregister()),
+    ...(await caches.keys()).map(k=>caches.delete(k))
+  ])'
+  ```
+- Now captured in `~/.claude/projects/-Users-derianj-projects-sitefile/memory/project_state.md`.
+
+#### Plan parking lot
+A formal upgrade plan was written and is preserved at
+`/Users/derianj/.claude/plans/create-a-plan-to-robust-matsumoto.md`.
+Three Tier 3 items were scoped but **deferred — each needs design
+input, not just execution**:
+1. **Field-friendly density pass** — audit every interactive element
+   for ≥44px touch targets, gloved-finger spacing, contrast for
+   outdoor-construction context. Current density is desk-software
+   density.
+2. **True cross-resource search** in ⌘K — searching task names and
+   evidence note text. Needs new tRPC endpoints with full-text search
+   on `tasks.name` + `evidence.note`. Backend work, not just UI.
+3. **Evidence-as-workspace reframe** — make Evidence the project home
+   for projects with non-zero evidence count, demote Overview. Bigger
+   IA decision.
+
+Plus two smaller polish items queued in TaskCreate (#1 tooltips on
+icon-only buttons, #2 `aria-live` regions on async status changes).
+
+#### Phase 9 status — unchanged
+The original Phase 9 launch blockers from 2026-04-27 remain open
+(Stripe webhook secret, Clerk `pk_live_*` swap, Supabase Pro for
+auto-pause prevention). The Supabase free-tier auto-pause hit again
+mid-session and was restored via Supabase MCP — symptom is
+`tenant/user postgres.* not found` and the recurring nature of this
+gotcha is now memorised.
 
 ---
 
