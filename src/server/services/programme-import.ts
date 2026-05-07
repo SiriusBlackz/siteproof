@@ -10,7 +10,7 @@ export interface ParsedTask {
   sortOrder: number;
 }
 
-export type ProgrammeFormat = "msproject" | "p6" | "xlsx";
+export type ProgrammeFormat = "msproject" | "p6" | "xlsx" | "pdf";
 
 export interface ParseResult {
   format: ProgrammeFormat;

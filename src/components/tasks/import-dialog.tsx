@@ -27,7 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileUp, AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { FileUp, AlertCircle, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface ImportDialogProps {
@@ -50,6 +51,7 @@ interface ParsedTaskPreview {
 interface PreviewData {
   format: string;
   tasks: ParsedTaskPreview[];
+  confidence?: number;
 }
 
 interface ColumnMapping {
@@ -75,9 +77,10 @@ export function ImportDialog({
   projectId,
   onImportComplete,
 }: ImportDialogProps) {
-  // Source data — only one of (xmlContent, xlsxBase64) is set at a time.
+  // Source data — only one of (xmlContent, xlsxBase64, pdfBase64) is set at a time.
   const [xmlContent, setXmlContent] = useState<string>("");
   const [xlsxBase64, setXlsxBase64] = useState<string>("");
+  const [pdfBase64, setPdfBase64] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
 
   // Wizard state
@@ -100,7 +103,11 @@ export function ImportDialog({
         });
         setMapping(data.suggested);
       } else {
-        setPreview({ format: data.format, tasks: data.tasks });
+        setPreview({
+          format: data.format,
+          tasks: data.tasks,
+          confidence: "confidence" in data ? data.confidence : undefined,
+        });
         setMappingStep(null);
       }
     },
@@ -126,15 +133,24 @@ export function ImportDialog({
     setFileName(file.name);
 
     const isXlsx = /\.xlsx$/i.test(file.name);
+    const isPdf = /\.pdf$/i.test(file.name);
     const reader = new FileReader();
     if (isXlsx) {
       reader.onload = (e) => {
         const result = e.target?.result;
         if (typeof result !== "string") return;
-        // result is "data:...;base64,XXXX"
         const b64 = result.split(",")[1] ?? "";
         setXlsxBase64(b64);
         previewMutation.mutate({ kind: "xlsx-inspect", xlsxBase64: b64 });
+      };
+      reader.readAsDataURL(file);
+    } else if (isPdf) {
+      reader.onload = (e) => {
+        const result = e.target?.result;
+        if (typeof result !== "string") return;
+        const b64 = result.split(",")[1] ?? "";
+        setPdfBase64(b64);
+        previewMutation.mutate({ kind: "pdf", pdfBase64: b64 });
       };
       reader.readAsDataURL(file);
     } else {
@@ -173,12 +189,24 @@ export function ImportDialog({
         clearExisting,
         source: { kind: "xlsx", xlsxBase64, mapping },
       });
+    } else if (pdfBase64 && preview) {
+      // PDF: send the (potentially edited) tasks back. Re-index sortOrder.
+      const tasksToImport = preview.tasks.map((t, i) => ({
+        ...t,
+        sortOrder: i,
+      }));
+      importMutation.mutate({
+        projectId,
+        clearExisting,
+        source: { kind: "pdf", tasks: tasksToImport },
+      });
     }
   }
 
   function handleClose() {
     setXmlContent("");
     setXlsxBase64("");
+    setPdfBase64("");
     setFileName("");
     setMappingStep(null);
     setMapping(null);
@@ -186,6 +214,28 @@ export function ImportDialog({
     setError("");
     setClearExisting(false);
     onOpenChange(false);
+  }
+
+  function updatePreviewTask(
+    sourceRef: string,
+    field: keyof ParsedTaskPreview,
+    value: string | number | null
+  ) {
+    if (!preview) return;
+    setPreview({
+      ...preview,
+      tasks: preview.tasks.map((t) =>
+        t.sourceRef === sourceRef ? { ...t, [field]: value } : t
+      ),
+    });
+  }
+
+  function deletePreviewTask(sourceRef: string) {
+    if (!preview) return;
+    setPreview({
+      ...preview,
+      tasks: preview.tasks.filter((t) => t.sourceRef !== sourceRef),
+    });
   }
 
   function getDepth(
@@ -211,6 +261,7 @@ export function ImportDialog({
     msproject: "MS Project",
     p6: "Primavera P6",
     xlsx: "Excel",
+    pdf: "PDF (AI-extracted)",
   };
 
   return (
@@ -229,15 +280,16 @@ export function ImportDialog({
             >
               <FileUp className="h-8 w-8 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                {fileName || "Select an Excel (.xlsx) or XML programme"}
+                {fileName ||
+                  "Select an Excel (.xlsx), PDF, or XML programme"}
               </p>
               <p className="text-xs text-muted-foreground/70">
-                MS Project users: File → Save As → XML
+                PDF uses AI extraction (10-30s). MS Project users: File → Save As → XML.
               </p>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".xml,.xlsx"
+                accept=".xml,.xlsx,.pdf"
                 className="hidden"
                 onChange={(e) => handleFileSelect(e.target.files)}
               />
@@ -247,7 +299,11 @@ export function ImportDialog({
 
         {previewMutation.isPending && (
           <div className="py-8 text-center text-muted-foreground">
-            {xlsxBase64 ? "Reading spreadsheet..." : "Parsing XML..."}
+            {pdfBase64
+              ? "Extracting from PDF... this can take 10-30 seconds."
+              : xlsxBase64
+              ? "Reading spreadsheet..."
+              : "Parsing XML..."}
           </div>
         )}
 
@@ -348,14 +404,48 @@ export function ImportDialog({
         {/* Step 3: preview */}
         {preview && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="secondary">
                 {formatLabel[preview.format] ?? preview.format}
               </Badge>
               <span className="text-sm text-muted-foreground">
                 {preview.tasks.length} tasks found in {fileName}
               </span>
+              {preview.format === "pdf" && (
+                <Badge
+                  variant="secondary"
+                  className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                >
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  AI extracted
+                </Badge>
+              )}
             </div>
+
+            {preview.format === "pdf" &&
+              typeof preview.confidence === "number" &&
+              preview.confidence < 0.7 && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/20">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <div>
+                    <p className="font-medium text-amber-900 dark:text-amber-200">
+                      AI confidence: {Math.round(preview.confidence * 100)}%
+                    </p>
+                    <p className="text-amber-800 dark:text-amber-300/90 mt-0.5">
+                      Review every row carefully — the source PDF was difficult
+                      to read. Edit fields below or delete bad rows before
+                      importing.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+            {preview.format === "pdf" && (
+              <p className="text-xs text-muted-foreground">
+                Click any cell to edit. Use 🗑 to drop bad rows. Hierarchy is
+                preserved from the AI extraction.
+              </p>
+            )}
 
             <div className="max-h-64 overflow-y-auto rounded-lg border">
               <Table>
@@ -365,27 +455,105 @@ export function ImportDialog({
                     <TableHead>Start</TableHead>
                     <TableHead>End</TableHead>
                     <TableHead className="text-right">Progress</TableHead>
+                    {preview.format === "pdf" && <TableHead />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {preview.tasks.map((task) => {
                     const depth = getDepth(task, preview.tasks);
+                    const editable = preview.format === "pdf";
                     return (
                       <TableRow key={task.sourceRef}>
                         <TableCell>
-                          <span style={{ paddingLeft: `${depth * 16}px` }}>
-                            {task.name}
-                          </span>
+                          {editable ? (
+                            <Input
+                              value={task.name}
+                              onChange={(e) =>
+                                updatePreviewTask(
+                                  task.sourceRef,
+                                  "name",
+                                  e.target.value
+                                )
+                              }
+                              style={{ marginLeft: `${depth * 16}px` }}
+                              className="h-7 text-sm"
+                            />
+                          ) : (
+                            <span style={{ paddingLeft: `${depth * 16}px` }}>
+                              {task.name}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {task.plannedStart ?? "—"}
+                          {editable ? (
+                            <Input
+                              type="date"
+                              value={task.plannedStart ?? ""}
+                              onChange={(e) =>
+                                updatePreviewTask(
+                                  task.sourceRef,
+                                  "plannedStart",
+                                  e.target.value || null
+                                )
+                              }
+                              className="h-7 text-xs"
+                            />
+                          ) : (
+                            (task.plannedStart ?? "—")
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {task.plannedEnd ?? "—"}
+                          {editable ? (
+                            <Input
+                              type="date"
+                              value={task.plannedEnd ?? ""}
+                              onChange={(e) =>
+                                updatePreviewTask(
+                                  task.sourceRef,
+                                  "plannedEnd",
+                                  e.target.value || null
+                                )
+                              }
+                              className="h-7 text-xs"
+                            />
+                          ) : (
+                            (task.plannedEnd ?? "—")
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {task.progressPct}%
+                          {editable ? (
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={task.progressPct}
+                              onChange={(e) =>
+                                updatePreviewTask(
+                                  task.sourceRef,
+                                  "progressPct",
+                                  Math.min(
+                                    Math.max(Number(e.target.value) || 0, 0),
+                                    100
+                                  )
+                                )
+                              }
+                              className="h-7 w-16 text-xs text-right ml-auto"
+                            />
+                          ) : (
+                            `${task.progressPct}%`
+                          )}
                         </TableCell>
+                        {editable && (
+                          <TableCell>
+                            <button
+                              onClick={() => deletePreviewTask(task.sourceRef)}
+                              aria-label="Delete row"
+                              className="text-muted-foreground hover:text-destructive p-1"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}

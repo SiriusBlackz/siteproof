@@ -8,6 +8,7 @@ import {
   inspectExcel,
   parseExcelWithMapping,
 } from "@/server/services/excel-import";
+import { parsePdfBuffer } from "@/server/services/pdf-import";
 import { assertProjectAccess, assertTaskInProject } from "../helpers";
 import { writeAuditLogAsync } from "@/server/services/audit";
 
@@ -283,11 +284,25 @@ export const taskRouter = createTRPCRouter({
           xlsxBase64: z.string().min(10),
           mapping: columnMappingSchema,
         }),
+        z.object({
+          kind: z.literal("pdf"),
+          pdfBase64: z.string().min(10),
+        }),
       ])
     )
     .mutation(async ({ input }) => {
       if (input.kind === "xml") {
         return { kind: "preview" as const, ...detectAndParse(input.xml) };
+      }
+      if (input.kind === "pdf") {
+        const buf = Buffer.from(input.pdfBase64, "base64");
+        const { tasks, confidence } = await parsePdfBuffer(buf);
+        return {
+          kind: "preview" as const,
+          format: "pdf" as const,
+          tasks,
+          confidence,
+        };
       }
       const buf = Buffer.from(input.xlsxBase64, "base64");
       if (input.kind === "xlsx-inspect") {
@@ -309,21 +324,41 @@ export const taskRouter = createTRPCRouter({
             xlsxBase64: z.string().min(10),
             mapping: columnMappingSchema,
           }),
+          z.object({
+            kind: z.literal("pdf"),
+            tasks: z.array(
+              z.object({
+                sourceRef: z.string(),
+                name: z.string().min(1),
+                parentSourceRef: z.string().nullable(),
+                plannedStart: z.string().nullable(),
+                plannedEnd: z.string().nullable(),
+                progressPct: z.number(),
+                sortOrder: z.number(),
+              })
+            ),
+          }),
         ]),
       })
     )
     .mutation(async ({ ctx, input }) => {
       await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
       let parsedTasks;
-      let format: "msproject" | "p6" | "xlsx";
+      let format: "msproject" | "p6" | "xlsx" | "pdf";
       if (input.source.kind === "xml") {
         const result = detectAndParse(input.source.xml);
         parsedTasks = result.tasks;
         format = result.format;
-      } else {
+      } else if (input.source.kind === "xlsx") {
         const buf = Buffer.from(input.source.xlsxBase64, "base64");
         parsedTasks = await parseExcelWithMapping(buf, input.source.mapping);
         format = "xlsx";
+      } else {
+        // PDF: client-edited tasks come back as a structured array.
+        // The Claude extraction happened in previewImport; the user
+        // may have tweaked the rows before committing.
+        parsedTasks = input.source.tasks;
+        format = "pdf";
       }
 
       return ctx.db.transaction(async (tx) => {
