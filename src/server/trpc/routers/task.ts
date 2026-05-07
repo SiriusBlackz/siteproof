@@ -4,8 +4,21 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, adminProcedure } from "../index";
 import { tasks } from "@/server/db/schema";
 import { detectAndParse } from "@/server/services/programme-import";
+import {
+  inspectExcel,
+  parseExcelWithMapping,
+} from "@/server/services/excel-import";
 import { assertProjectAccess, assertTaskInProject } from "../helpers";
 import { writeAuditLogAsync } from "@/server/services/audit";
+
+const columnMappingSchema = z.object({
+  name: z.string().min(1),
+  plannedStart: z.string().nullable(),
+  plannedEnd: z.string().nullable(),
+  progressPct: z.string().nullable(),
+  wbs: z.string().nullable(),
+  parent: z.string().nullable(),
+});
 
 interface FlatTask {
   id: string;
@@ -258,22 +271,60 @@ export const taskRouter = createTRPCRouter({
     }),
 
   previewImport: protectedProcedure
-    .input(z.object({ xml: z.string().min(10) }))
+    .input(
+      z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("xml"), xml: z.string().min(10) }),
+        z.object({
+          kind: z.literal("xlsx-inspect"),
+          xlsxBase64: z.string().min(10),
+        }),
+        z.object({
+          kind: z.literal("xlsx-parse"),
+          xlsxBase64: z.string().min(10),
+          mapping: columnMappingSchema,
+        }),
+      ])
+    )
     .mutation(async ({ input }) => {
-      return detectAndParse(input.xml);
+      if (input.kind === "xml") {
+        return { kind: "preview" as const, ...detectAndParse(input.xml) };
+      }
+      const buf = Buffer.from(input.xlsxBase64, "base64");
+      if (input.kind === "xlsx-inspect") {
+        return { kind: "needs_mapping" as const, ...(await inspectExcel(buf)) };
+      }
+      const tasks = await parseExcelWithMapping(buf, input.mapping);
+      return { kind: "preview" as const, format: "xlsx" as const, tasks };
     }),
 
   import: protectedProcedure
     .input(
       z.object({
         projectId: z.string().uuid(),
-        xml: z.string().min(10),
         clearExisting: z.boolean().default(false),
+        source: z.discriminatedUnion("kind", [
+          z.object({ kind: z.literal("xml"), xml: z.string().min(10) }),
+          z.object({
+            kind: z.literal("xlsx"),
+            xlsxBase64: z.string().min(10),
+            mapping: columnMappingSchema,
+          }),
+        ]),
       })
     )
     .mutation(async ({ ctx, input }) => {
       await assertProjectAccess(ctx.db, input.projectId, ctx.orgId, ctx.userId);
-      const { tasks: parsedTasks, format } = detectAndParse(input.xml);
+      let parsedTasks;
+      let format: "msproject" | "p6" | "xlsx";
+      if (input.source.kind === "xml") {
+        const result = detectAndParse(input.source.xml);
+        parsedTasks = result.tasks;
+        format = result.format;
+      } else {
+        const buf = Buffer.from(input.source.xlsxBase64, "base64");
+        parsedTasks = await parseExcelWithMapping(buf, input.source.mapping);
+        format = "xlsx";
+      }
 
       return ctx.db.transaction(async (tx) => {
         if (input.clearExisting) {
