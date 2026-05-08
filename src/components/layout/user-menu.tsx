@@ -37,6 +37,7 @@ function DemoUserMenu() {
         <span
           className={cn(buttonVariants({ variant: "outline", size: "icon" }))}
           aria-label="Account menu"
+          title="Account menu"
         >
           <UserRound className="h-4 w-4" />
         </span>

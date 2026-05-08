@@ -261,7 +261,11 @@ function ReviewContent() {
             Review {photos.length} Photo{photos.length !== 1 ? "s" : ""}
           </h1>
           {doneCount > 0 && (
-            <p className="text-xs text-zinc-400">
+            <p
+              role="status"
+              aria-live="polite"
+              className="text-xs text-zinc-400"
+            >
               {doneCount} of {photos.length} uploaded
             </p>
           )}

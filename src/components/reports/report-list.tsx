@@ -115,7 +115,9 @@ export function ReportList({ reports }: ReportListProps) {
                 {report.periodStart} — {report.periodEnd}
               </TableCell>
               <TableCell>
-                <StatusBadge status={report.status ?? "generating"} />
+                <span role="status" aria-live="polite">
+                  <StatusBadge status={report.status ?? "generating"} />
+                </span>
               </TableCell>
               <TableCell>
                 {report.passwordHash ? (

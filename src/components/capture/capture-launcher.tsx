@@ -18,6 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 type Variant = "primary" | "icon";
@@ -74,14 +79,16 @@ export function CaptureLauncher({
 
   const trigger =
     variant === "icon" ? (
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Capture photos"
-        onClick={() => setOpen(true)}
-      >
-        <Camera className="h-4 w-4" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          aria-label="Capture photos"
+          onClick={() => setOpen(true)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-accent transition-colors"
+        >
+          <Camera className="h-4 w-4" />
+        </TooltipTrigger>
+        <TooltipContent>Capture photos</TooltipContent>
+      </Tooltip>
     ) : (
       <Button
         className="w-full justify-start gap-2"

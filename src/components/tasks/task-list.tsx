@@ -17,6 +17,11 @@ import {
   Trash2,
   GripVertical,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface TaskItem {
@@ -152,40 +157,68 @@ export function TaskList({ tasks, onEdit, onDelete, onReorder }: TaskListProps) 
               </div>
 
               <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => moveTask(task, "up")}
-                  disabled={!canMoveUp(task)}
-                  aria-label={`Move ${task.name} up`}
-                >
-                  <ChevronUp className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => moveTask(task, "down")}
-                  disabled={!canMoveDown(task)}
-                  aria-label={`Move ${task.name} down`}
-                >
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => onEdit(task)}
-                  aria-label={`Edit ${task.name}`}
-                >
-                  <Pencil className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => setDeleteConfirm(task.id)}
-                  aria-label={`Delete ${task.name}`}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => moveTask(task, "up")}
+                        disabled={!canMoveUp(task)}
+                        aria-label={`Move ${task.name} up`}
+                      />
+                    }
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </TooltipTrigger>
+                  <TooltipContent>Move up</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => moveTask(task, "down")}
+                        disabled={!canMoveDown(task)}
+                        aria-label={`Move ${task.name} down`}
+                      />
+                    }
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </TooltipTrigger>
+                  <TooltipContent>Move down</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => onEdit(task)}
+                        aria-label={`Edit ${task.name}`}
+                      />
+                    }
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </TooltipTrigger>
+                  <TooltipContent>Edit</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => setDeleteConfirm(task.id)}
+                        aria-label={`Delete ${task.name}`}
+                      />
+                    }
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </TooltipTrigger>
+                  <TooltipContent>Delete</TooltipContent>
+                </Tooltip>
               </div>
             </div>
           );

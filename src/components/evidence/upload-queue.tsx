@@ -239,7 +239,11 @@ export function UploadQueue({ projectId, onUploadComplete }: UploadQueueProps) {
         </div>
 
         {queue.length > 0 && (
-          <div className="text-sm text-muted-foreground">
+          <div
+            role="status"
+            aria-live="polite"
+            className="text-sm text-muted-foreground"
+          >
             {doneCount} of {totalCount} uploaded
           </div>
         )}
