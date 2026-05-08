@@ -58,14 +58,18 @@ export const dashboardRouter = createTRPCRouter({
       if (row.status === "delayed") taskCounts.delayed = row.count;
     }
 
-    // Evidence counts with SQL aggregation
+    // Evidence counts with SQL aggregation.
+    // Bind the cutoff as an ISO string — passing a JS Date through drizzle's
+    // sql template into a FILTER clause was failing parameter binding on
+    // postgres-js, returning the whole query as a 500.
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoIso = sevenDaysAgo.toISOString();
 
     const [evidenceStats] = await ctx.db
       .select({
         total: sql<number>`count(*)::int`,
-        thisWeek: sql<number>`count(*) filter (where ${evidence.createdAt} >= ${sevenDaysAgo})::int`,
+        thisWeek: sql<number>`count(*) filter (where ${evidence.createdAt} >= ${sevenDaysAgoIso})::int`,
       })
       .from(evidence)
       .where(inArray(evidence.projectId, projectIds));

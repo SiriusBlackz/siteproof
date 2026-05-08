@@ -13,7 +13,6 @@ import {
 import { OfflineQueueIndicator } from "./offline-queue-indicator";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
-import { CaptureLauncher } from "@/components/capture/capture-launcher";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -29,12 +28,6 @@ export function Sidebar() {
       <div className="flex h-14 items-center gap-2 border-b px-4">
         <HardHat className="h-6 w-6 text-primary" />
         <span className="text-lg font-semibold">Sitefile</span>
-      </div>
-      <div className="px-2 pt-2">
-        <CaptureLauncher variant="primary" />
-      </div>
-      <div className="px-3 pt-3 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground/70">
-        Press <kbd className="font-mono text-[10px] border rounded px-1 py-0.5 ml-0.5">⌘K</kbd> to search
       </div>
       <nav className="flex-1 space-y-1 p-2">
         {navItems.map((item) => {
